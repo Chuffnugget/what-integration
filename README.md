@@ -214,14 +214,17 @@ custom settings, but recorder history is not erased. See
 The fast tests run with `python -m pytest -q tests --ignore=tests/ha_runtime`.
 For real entity registration, reconnect metadata, reload and unload checks, use
 a separate Linux environment with Python 3.14, `homeassistant==2026.9.0`,
-`pytest` and `pytest-asyncio`, then run `python -m pytest -q tests/ha_runtime`.
+`pytest` and `pytest-asyncio`. Run `python scripts/install_ha_test_dependencies.py`
+to install the matching Home Assistant frontend, then run
+`python -m pytest -q tests/ha_runtime`.
 The tests use a temporary HA configuration and simulated PCs. They cover setup,
 reauthentication, discovery changes, recovery notices, diagnostics and lifecycle.
 CI runs them against both the minimum supported HA and the latest stable release.
 
-The release workflow runs on version tags or manual dispatch. Ordinary commits
-and pull requests do not start Actions. Validation covers Python tests, the
-display card, Home Assistant's Hassfest and HACS repository validation.
+Validation runs on pushes to `main`, pull requests targeting `main`, and manual
+dispatch. It covers Python tests, the display card, Home Assistant's Hassfest and
+HACS repository validation. The release workflow runs the same checks before
+publishing a version tag.
 
 Tag the version in `custom_components/what/manifest.json`. A validated tag run
 creates a release and attaches `what.zip`, which contains the integration files
