@@ -30,12 +30,19 @@
   </a>
 </p>
 
-This repository contains the WHAT Home Assistant integration. Install the
-[Windows application](https://github.com/Chuffnugget/what-windows#readme) on each PC
-you want to connect. The integration requires Home Assistant 2026.9+.
+WHAT (Windows Home Assistant Toolkit) connects Windows PCs to Home Assistant for
+monitoring and control. It supports Windows APIs for audio, media, displays,
+notifications and Dynamic Lighting; HWiNFO and Core Temp shared memory; NVIDIA
+NVML; BEACN; Corsair iCUE RGB and Automation; and Wallpaper Engine. Custom sensors,
+saved commands and an embedded Home Assistant dashboard are included. Connect
+one or more Home Assistant installations through WHAT API or MQTT, and choose
+which readings and controls each can access.
 
-Each PC has a parent WHAT device, with module devices beneath it. Entity IDs
-remain stable when switching between WHAT API and MQTT connections.
+[Windows application](https://github.com/Chuffnugget/what-windows#readme) - install on each PC you want to connect.
+
+This repository contains the Home Assistant integration and requires Home
+Assistant 2026.9+. Each PC has a parent WHAT device, with module devices beneath
+it. Entity IDs remain stable when switching between WHAT API and MQTT.
 
 ## Install and pair
 
@@ -70,8 +77,8 @@ the same installation. Choose **Active Connection** in WHAT to switch; the
 integration verifies the new route without re-pairing or reloading. Failed checks
 retain the previous connection. Use one entry per Home Assistant server. Select the matching installation before
 copying its token. Remote API and MQTT pairing can be completed without direct
-PC access. See [remote API setup](REMOTE.md) and
-[MQTT setup](MQTT.md).
+PC access. See [remote API setup](documentation/REMOTE.md) and
+[MQTT setup](documentation/MQTT.md).
 
 ## Sensors and controls
 
@@ -107,19 +114,19 @@ memory, GPU and drive sensors. WHAT reads their shared memory without changing
 their hardware polling rate. Temperatures are normalised to Celsius; distance to
 TjMax has its own reading.
 
-See [Entities and actions](ENTITIES.md) for automation examples and control limits.
+See [Entities and actions](documentation/ENTITIES.md) for automation examples and control limits.
 
 ## Connections
 
-Local authenticated TLS WebSockets are the default. Optional remote access uses
-your HA HTTPS endpoint, including Nabu Casa. Configure both connection types in
-WHAT. HA applies those choices over the paired local connection; there is no
-separate connection menu in the integration. MQTT still requires HA's MQTT
-integration and uses the same WHAT entities.
+WHAT API uses authenticated TLS WebSockets over the local network or your Home
+Assistant HTTPS endpoint, including Nabu Casa. MQTT uses your broker and requires
+Home Assistant's MQTT integration. Configure the available routes in WHAT and
+choose one active connection per installation. Both methods use the same WHAT
+entities.
 
 Keep the existing WHAT entry when changing transport. This preserves the PC's
-entity IDs, automations and history. See [Remote setup](REMOTE.md) and
-[MQTT setup](MQTT.md).
+entity IDs, automations and history. See [Remote setup](documentation/REMOTE.md) and
+[MQTT setup](documentation/MQTT.md).
 
 ## Monitor manager
 
@@ -134,7 +141,7 @@ title: Monitor manager
 
 Drag monitors to arrange them, choose modes and rotation, or enable mirroring.
 **Apply layout** sends the staged changes to Windows. See the
-[card guide](DISPLAY-CARD.md) and [display controls](DISPLAYS.md).
+[card guide](documentation/DISPLAY-CARD.md) and [display controls](documentation/DISPLAYS.md).
 
 ## Updates and troubleshooting
 
@@ -207,7 +214,7 @@ Cleanup preserves selected readings even when unavailable, supported controls,
 diagnostics and other PCs. Only the reviewed entities can be removed; selection
 is checked again before removal. Removed entities lose their registrations and
 custom settings, but recorder history is not erased. See
-[Modules and cleanup](MODULES-AND-CLEANUP.md).
+[Modules and cleanup](documentation/MODULES-AND-CLEANUP.md).
 
 ## Validation and releases
 
@@ -249,9 +256,12 @@ Windows app's log separately.
 
 ## Documentation
 
-- [BEACN](BEACN.md), [Wallpaper Engine](WALLPAPER_ENGINE.md)
-- [Notifications](NOTIFICATIONS.md), [Keyboard and mouse](INPUT.md)
-- [Protocol](PROTOCOL.md), [Release history](https://github.com/Chuffnugget/what-integration/releases)
+- [Entities and actions](documentation/ENTITIES.md), [Modules and cleanup](documentation/MODULES-AND-CLEANUP.md)
+- [Remote API setup](documentation/REMOTE.md), [MQTT setup](documentation/MQTT.md)
+- [Displays](documentation/DISPLAYS.md), [Display layout card](documentation/DISPLAY-CARD.md)
+- [BEACN](documentation/BEACN.md), [Wallpaper Engine](documentation/WALLPAPER_ENGINE.md)
+- [Notifications](documentation/NOTIFICATIONS.md), [Keyboard and mouse](documentation/INPUT.md)
+- [Protocol](documentation/PROTOCOL.md), [Release history](https://github.com/Chuffnugget/what-integration/releases)
 - [Windows app](https://github.com/Chuffnugget/what-windows#readme)
 
 ## Licence

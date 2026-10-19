@@ -9,7 +9,7 @@ The Windows module targets BEACN 1.4.2.12 with the 6.16.0.0 x64 driver (API 5.16
 Other versions undergo compatibility and live mixer checks. Compatible versions
 can work with a warning; failed checks identify the affected controls. The module
 shows the detected app and driver versions. See the
-[Windows BEACN guide](https://github.com/Chuffnugget/what-windows/blob/main/docs/BEACN.md)
+[Windows BEACN guide](https://github.com/Chuffnugget/what-windows/blob/main/documentation/BEACN.md)
 for connection setup, compatibility checks and diagnostic tools.
 
 ## Readings and controls

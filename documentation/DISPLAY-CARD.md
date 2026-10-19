@@ -4,7 +4,7 @@ The card displays monitor rectangles, names and modes using the Display arrangem
 
 ## Install
 
-1. Install compatible releases of the Windows app and Home Assistant integration using the [setup guide](README.md#install-and-pair). When updating, keep the existing WHAT entry and PC profile, then restart Home Assistant.
+1. Install compatible releases of the Windows app and Home Assistant integration using the [setup guide](../README.md#install-and-pair). When updating, keep the existing WHAT entry and PC profile, then restart Home Assistant.
 2. Enable **Modules > Windows > Displays** and its **Home Assistant display-control permission** on the PC. The card can show metadata without control permission, but editing is disabled.
 3. Refresh the Home Assistant browser page after restarting HA. WHAT automatically registers and loads its bundled card; no dashboard resource entry is needed. Its URL includes a content hash so updated JavaScript replaces cached copies.
 4. Add **WHAT display layout** through the card picker, or keep your existing manual card YAML:
