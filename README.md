@@ -26,7 +26,7 @@
     <img src="https://img.shields.io/badge/PayPal.Me-chuffnugget-00457C?logo=paypal" alt="PayPal.Me">
   </a>
   <a href="https://coff.ee/chuffnugget">
-    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="40">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="20">
   </a>
 </p>
 

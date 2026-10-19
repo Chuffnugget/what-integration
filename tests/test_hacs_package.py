@@ -24,6 +24,8 @@ def test_release_asset_layout_and_manifest(tmp_path):
             (name.startswith("custom_components/") or "__pycache__" in name or name.endswith(".pyc") for name in names),
         )
         assert json.loads(archive.read("manifest.json"))["version"] == version
+        for name in ("LICENSE", "COPYING.GPL-3.0", "COPYRIGHT"):
+            assert archive.read(name) == (ROOT / name).read_bytes()
 
 def test_release_tag_must_match_manifest(tmp_path):
     with pytest.raises(ValueError):
