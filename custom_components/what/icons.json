@@ -1,0 +1,7 @@
+{
+  "services": {
+    "run_command": {
+      "service": "mdi:console"
+    }
+  }
+}

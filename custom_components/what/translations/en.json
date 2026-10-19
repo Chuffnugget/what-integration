@@ -1,0 +1,601 @@
+{
+  "title": "WHAT",
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Pair a Windows PC",
+        "description": "Choose the connection selected in WHAT > Settings > Home Assistant Installations. WHAT API supports both local and remote connections without a broker. MQTT uses the broker configured in Home Assistant's MQTT integration.",
+        "data": {
+          "connection": "Connection method"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure this PC",
+        "description": "Choose the connection selected in WHAT > Settings > Home Assistant Installations. WHAT API supports both local and remote connections without a broker. MQTT uses the broker configured in Home Assistant's MQTT integration. Updating this entry keeps its device and entity IDs.",
+        "data": {
+          "connection": "Connection method"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Update PC pairing",
+        "description": "Choose the connection selected in WHAT > Settings > Home Assistant Installations. WHAT API supports both local and remote connections without a broker. MQTT uses the broker configured in Home Assistant's MQTT integration. Updating this entry keeps its device and entity IDs.",
+        "data": {
+          "connection": "Connection method"
+        }
+      },
+      "api": {
+        "title": "Pair using WHAT API",
+        "description": "Copy the pairing details from WHAT > Settings > Home Assistant Installations > Pairing. For local access, enter the PC address and port. For remote access, leave the PC address blank and configure this Home Assistant's HTTPS address in WHAT. Both use the same WHAT API. Readings appear after the PC authenticates.",
+        "data": {
+          "device_id": "PC device ID",
+          "name": "PC name",
+          "token": "Pairing token",
+          "fingerprint": "Certificate SHA-256 fingerprint",
+          "host": "PC address (optional, for local access)",
+          "port": "PC port"
+        }
+      },
+      "mqtt": {
+        "title": "Pair using MQTT",
+        "description": "Copy the pairing details from WHAT > Settings > Home Assistant Installations > Pairing. WHAT and Home Assistant's MQTT integration must use the same broker. Readings appear after the PC authenticates.",
+        "data": {
+          "device_id": "PC device ID",
+          "name": "PC name",
+          "token": "Pairing token",
+          "fingerprint": "Certificate SHA-256 fingerprint"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect. Check that WHAT is running, the address and port are correct, and Windows Firewall allows the connection.",
+      "invalid_auth": "Pairing token rejected. Copy the current token from the PC app.",
+      "fingerprint_mismatch": "Certificate mismatch. Copy the fingerprint directly from the intended PC; it may have been reset.",
+      "invalid_input": "Enter the copied PC device ID, a PC name (up to 80 characters), a 64-character hexadecimal pairing token and the full certificate fingerprint. If using a local PC address, enter a hostname or IP without wss:// and a port from 1 to 65535.",
+      "invalid_protocol": "The app protocol or device identity does not match. Check that both packages are compatible and this is the intended PC.",
+      "mqtt_not_configured": "Home Assistant's MQTT integration is not ready. Set up or repair MQTT under Settings > Devices & services, then try again.",
+      "unknown": "An unexpected error occurred while pairing. Check the Home Assistant logs for details."
+    },
+    "abort": {
+      "already_configured": "This PC is already configured.",
+      "invalid_discovery": "The discovered service did not provide a valid identity.",
+      "reauth_successful": "Pairing updated.",
+      "reconfigure_successful": "PC connection updated.",
+      "unique_id_mismatch": "This is a different PC. Add it as a separate WHAT integration.",
+      "already_in_progress": "Pairing is already in progress for this PC.",
+      "incompatible_discovery": "This PC advertises an incompatible WHAT protocol or does not support TLS. Update WHAT and its integration before pairing."
+    }
+  },
+  "services": {
+    "run_command": {
+      "name": "Run Windows command",
+      "description": "Execute a command on one paired PC. Requires remote shell permission and Home Assistant administrator access for user calls. Commands and output may appear in automation traces.",
+      "fields": {
+        "shell": {
+          "name": "Shell",
+          "description": "Windows PowerShell, installed PowerShell 7, CMD or WSL."
+        },
+        "command": {
+          "name": "Command",
+          "description": "Up to 2048 characters. Runs non-interactively without requesting elevation."
+        },
+        "timeout": {
+          "name": "Timeout",
+          "description": "Maximum run time in seconds, from 1 to 300."
+        },
+        "distribution": {
+          "name": "WSL distribution",
+          "description": "Optional installed WSL distribution; omit to use the default. Requires the Linux timeout utility."
+        },
+        "device_id": {
+          "name": "WHAT PC",
+          "description": "The paired Windows PC that will receive this action."
+        },
+        "leave_running": {
+          "name": "Leave launched apps running",
+          "description": "Keep child applications open after the shell exits successfully. Timeout, cancellation or failure still stops them. WHAT cannot cancel released applications later. Windows shells only, not WSL. Use Start-Process in PowerShell or start \"\" \"app.exe\" in CMD so the shell finishes instead of waiting for the app."
+        }
+      }
+    },
+    "send_notification": {
+      "name": "Send Windows notification",
+      "description": "Send a notification to one PC. Images, replies, longer text and action buttons require installed WHAT. Windows notification settings may suppress it. Limited to one per second.",
+      "fields": {
+        "device_id": {
+          "name": "WHAT PC",
+          "description": "The paired Windows PC that will receive this action."
+        },
+        "title": {
+          "name": "Title",
+          "description": "One line, up to 128 Windows text units. Emoji can count as two. Portable notifications allow 63."
+        },
+        "message": {
+          "name": "Message",
+          "description": "Up to 2000 Windows text units. Plain text; line breaks are allowed. Portable notifications allow 255."
+        },
+        "level": {
+          "name": "Notification icon",
+          "description": "Selects the icon; does not bypass Do not disturb."
+        },
+        "notification_id": {
+          "name": "Notification ID",
+          "description": "Optional ID, up to 64 characters. Reusing it replaces the previous notification. Included in action events."
+        },
+        "image": {
+          "name": "Image URL",
+          "description": "HTTP or HTTPS image reachable from the PC, up to 2 MiB and 4096 pixels per side."
+        },
+        "actions": {
+          "name": "Action buttons",
+          "description": "Up to four objects with id and title. Optional url opens a web page; other buttons fire what_notification_action in Home Assistant. OPEN is reserved for clicking the notification body."
+        },
+        "reply": {
+          "name": "Include a reply box",
+          "description": "Add at least one action without a URL. Its click sends the reply text in the Home Assistant event."
+        },
+        "silent": {
+          "name": "Silent",
+          "description": "Send without a notification sound. Windows notification settings still apply."
+        },
+        "ttl": {
+          "name": "Expires after",
+          "description": "Defaults to 600 seconds. Expired action clicks are ignored."
+        }
+      }
+    },
+    "speak": {
+      "name": "Speak",
+      "description": "Speak on a PC using an installed Windows voice. Requires Speech and Audio permission in WHAT. Replaces the current announcement.",
+      "fields": {
+        "message": {
+          "name": "Message",
+          "description": "The text to speak on the selected PC."
+        },
+        "voice": {
+          "name": "Windows voice ID",
+          "description": "Optional installed voice ID, listed under Speech and Audio in WHAT. Omit for the Windows default voice."
+        },
+        "rate": {
+          "name": "Speech rate",
+          "description": "Playback speed from 0.5 to 2. Use 1 for normal speed."
+        },
+        "volume": {
+          "name": "Announcement volume",
+          "description": "WHAT player volume only. Does not change Windows master volume."
+        },
+        "device_id": {
+          "name": "WHAT PC",
+          "description": "The paired Windows PC that will receive this action."
+        }
+      }
+    },
+    "send_keyboard": {
+      "name": "Send keyboard input",
+      "description": "Press a shortcut or type text into the active Windows window. Requires PC input permission and Home Assistant administrator access. Does not retry.",
+      "fields": {
+        "device_id": {
+          "name": "WHAT PC",
+          "description": "The paired Windows PC that will receive this action."
+        },
+        "keys": {
+          "name": "Shortcut keys",
+          "description": "Select modifiers first, then the key. Leave empty when sending text."
+        },
+        "text": {
+          "name": "Text to type",
+          "description": "Up to 1024 UTF-16 units. Leave keys empty. Text may appear in Home Assistant traces; not logged on the PC."
+        }
+      }
+    },
+    "send_mouse": {
+      "name": "Send mouse input",
+      "description": "Move or click at physical desktop pixel coordinates across all monitors. Negative coordinates are supported. Requires PC input permission and Home Assistant administrator access.",
+      "fields": {
+        "device_id": {
+          "name": "WHAT PC",
+          "description": "The paired Windows PC that will receive this action."
+        },
+        "x": {
+          "name": "X coordinate",
+          "description": "Horizontal position in physical desktop pixels. Negative values address monitors left of the main display."
+        },
+        "y": {
+          "name": "Y coordinate",
+          "description": "Vertical position in physical desktop pixels. Negative values address monitors above the main display."
+        },
+        "button": {
+          "name": "Mouse button",
+          "description": "Choose a button to click, or none to move the pointer only."
+        },
+        "clicks": {
+          "name": "Click count",
+          "description": "Optional; defaults to one when a button is selected. Omit for movement only."
+        }
+      }
+    },
+    "apply_display_layout": {
+      "name": "Apply display layout",
+      "description": "Apply a staged arrangement from the WHAT display card. Requires administrator access and PC display-control permission. No automatic rollback or retry.",
+      "fields": {
+        "entity_id": {
+          "name": "Display arrangement sensor",
+          "description": "The display arrangement sensor belonging to the PC to change."
+        },
+        "layout": {
+          "name": "Requested layout",
+          "description": "The requested monitor arrangement, generated by the WHAT display card."
+        },
+        "expected": {
+          "name": "Original layout",
+          "description": "The arrangement before editing. A newer Windows layout causes rejection."
+        }
+      }
+    },
+    "wallpaper_engine": {
+      "name": "Wallpaper Engine",
+      "description": "Control Wallpaper Engine on one PC. Requires the module and Home Assistant control permission in WHAT. Commands are not retried.",
+      "fields": {
+        "device_id": {
+          "name": "WHAT PC",
+          "description": "The paired Windows PC that will receive this action."
+        },
+        "operation": {
+          "name": "Operation",
+          "description": "The Wallpaper Engine action to run on the selected PC."
+        },
+        "file": {
+          "name": "Wallpaper file",
+          "description": "Wallpaper file path on the Windows PC, for openWallpaper."
+        },
+        "playlist": {
+          "name": "Playlist",
+          "description": "Saved Wallpaper Engine playlist name, for openPlaylist."
+        },
+        "profile": {
+          "name": "Profile",
+          "description": "Saved display profile name, for openProfile."
+        },
+        "monitor": {
+          "name": "Monitor",
+          "description": "Wallpaper Engine monitor index (0 is the first). Omit for the operation's default target."
+        },
+        "options": {
+          "name": "Options",
+          "description": "Optional file, playlist, profile, monitor (0-based), location, preset, window parameters or properties object. Paths refer to the Windows PC."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "app_uptime": {
+        "name": "App uptime"
+      },
+      "app_last_seen": {
+        "name": "Last seen"
+      },
+      "app_cpu": {
+        "name": "WHAT CPU usage"
+      },
+      "app_memory": {
+        "name": "WHAT memory usage"
+      },
+      "connection_uptime": {
+        "name": "Connection uptime"
+      },
+      "connection_transport": {
+        "name": "Connection transport"
+      },
+      "connection_mode": {
+        "name": "Remote access mode"
+      },
+      "connection_active_mode": {
+        "name": "Active connection mode"
+      },
+      "published_entities": {
+        "name": "Published readings"
+      },
+      "unavailable_readings": {
+        "name": "Unavailable readings"
+      },
+      "beacn_unavailable_controls": {
+        "name": "Unavailable BEACN controls"
+      },
+      "source_status": {
+        "name": "status"
+      },
+      "license": {
+        "name": "edition (self-reported)",
+        "state": {
+          "unknown": "Unknown",
+          "free": "Free",
+          "pro": "Pro"
+        }
+      },
+      "windows_displays_arrangement": {
+        "name": "Display arrangement"
+      },
+      "entity_cleanup": {
+        "name": "Entity cleanup"
+      },
+      "beacn_status": {
+        "name": "status"
+      },
+      "wallpaper_engine_status": {
+        "name": "Wallpaper Engine"
+      },
+      "wallpaper_engine_current": {
+        "name": "current wallpaper"
+      }
+    },
+    "binary_sensor": {
+      "connection": {
+        "name": "PC connection"
+      },
+      "source_problem": {
+        "name": "data problem"
+      },
+      "windows_problem": {
+        "name": "collection problem"
+      }
+    },
+    "button": {
+      "app_restart": {
+        "name": "Restart WHAT"
+      },
+      "entity_cleanup_preview": {
+        "name": "Preview entity cleanup"
+      },
+      "entity_cleanup_remove": {
+        "name": "Remove previewed entities"
+      },
+      "command_sleep": {
+        "name": "Sleep"
+      },
+      "command_hibernate": {
+        "name": "Hibernate"
+      },
+      "command_reboot": {
+        "name": "Restart Windows"
+      },
+      "command_shutdown": {
+        "name": "Shut down Windows"
+      },
+      "command_lock": {
+        "name": "Lock Windows"
+      },
+      "command_monitor_sleep": {
+        "name": "Sleep monitors"
+      },
+      "wallpaper_engine_play": {
+        "name": "play"
+      },
+      "wallpaper_engine_pause": {
+        "name": "pause"
+      },
+      "wallpaper_engine_stop": {
+        "name": "stop"
+      },
+      "wallpaper_engine_mute": {
+        "name": "mute"
+      },
+      "wallpaper_engine_unmute": {
+        "name": "unmute"
+      },
+      "wallpaper_engine_nextwallpaper": {
+        "name": "next wallpaper"
+      },
+      "wallpaper_engine_hideicons": {
+        "name": "hide desktop icons"
+      },
+      "wallpaper_engine_showicons": {
+        "name": "show desktop icons"
+      }
+    },
+    "select": {
+      "windows_power_plan": {
+        "name": "power plan"
+      },
+      "windows_power_mode_ac": {
+        "name": "Power mode: plugged in"
+      },
+      "windows_power_mode_dc": {
+        "name": "Power mode: battery"
+      }
+    },
+    "text": {
+      "windows_launch_url": {
+        "name": "Open web URL"
+      }
+    },
+    "number": {
+      "app_publish_interval": {
+        "name": "Publishing interval"
+      }
+    },
+    "switch": {
+      "app_logging": {
+        "name": "Diagnostic logging"
+      }
+    },
+    "update": {
+      "app_update": {
+        "name": "WHAT update"
+      }
+    },
+    "media_player": {
+      "windows_media_control": {
+        "name": "media"
+      },
+      "windows_announcements": {
+        "name": "Announcements"
+      }
+    }
+  },
+  "issues": {
+    "certificate_mismatch": {
+      "title": "Verify the certificate for {name}",
+      "description": "The direct connection presented a different certificate. Open WHAT on the intended PC and copy its current certificate fingerprint. In Home Assistant, open the existing WHAT entry and choose Reconfigure. Verify the PC before accepting the new fingerprint. Keeping the existing entry preserves device and entity IDs. Other working connection routes remain available."
+    },
+    "identity_mismatch": {
+      "title": "The address for {name} belongs to a different PC",
+      "description": "WHAT rejected a connection because the PC identity did not match the paired device. Check the address and choose Reconfigure on the existing WHAT entry to restore the intended PC. Add a replacement PC as a separate entry; do not reuse this pairing for a different device."
+    },
+    "protocol_mismatch": {
+      "title": "Update the WHAT components for {name}",
+      "description": "The Windows app and this integration use incompatible protocol versions. Install compatible releases of both components, then reconnect the PC. Keep the existing WHAT entry to preserve device and entity IDs."
+    },
+    "invalid_data": {
+      "title": "Invalid WHAT data received from {name}",
+      "description": "WHAT rejected a malformed update. Enable debug logging for this integration and download its diagnostics if the problem continues. Check that the Windows app and integration are compatible releases. The notice clears when this connection delivers a valid update."
+    }
+  },
+  "exceptions": {
+    "enable_speech_and_audio_from_home_assistant_in_what": {
+      "message": "Enable Speech and Audio from Home Assistant in WHAT's Windows module"
+    },
+    "audio_requires_an_http_or_https_url_reachable_from": {
+      "message": "Audio requires an HTTP or HTTPS URL reachable from the PC"
+    },
+    "what_replaces_the_current_announcement_queued_playback_is_not": {
+      "message": "WHAT replaces the current announcement; queued playback is not supported"
+    },
+    "choose_a_what_pc": {
+      "message": "Choose a WHAT PC"
+    },
+    "the_selected_pc_is_not_loaded_or_is_ambiguous": {
+      "message": "The selected PC is not loaded or is ambiguous"
+    },
+    "enable_beacn_and_ha_control_on_the_pc_and": {
+      "message": "Enable BEACN and Home Assistant control on the PC, and keep the supported BEACN app running"
+    },
+    "beacn_selection_is_no_longer_available": {
+      "message": "BEACN selection is no longer available"
+    },
+    "expected_a_boolean": {
+      "message": "Expected a boolean"
+    },
+    "value_outside_beacn_range": {
+      "message": "Value outside BEACN range"
+    },
+    "that_beacn_option_is_no_longer_available": {
+      "message": "That BEACN option is no longer available"
+    },
+    "enable_this_remote_control_on_the_pc_s_modules": {
+      "message": "Enable this remote control on the PC's Modules page first"
+    },
+    "allow_home_assistant_to_manage_what_in_the_pc": {
+      "message": "Allow Home Assistant to Manage WHAT in the PC app's Pairing and Security settings"
+    },
+    "unknown_what_app_command": {
+      "message": "Unknown WHAT app command"
+    },
+    "update_the_what_pairing_token": {
+      "message": "Update the WHAT pairing token"
+    },
+    "cannot_connect_to_the_paired_pc_check_app_address": {
+      "message": "Cannot connect to the paired PC; check app, address and fingerprint"
+    },
+    "check_the_custom_module_global_saved_command_permission_and": {
+      "message": "Check the Custom module, global saved-command permission and this command's Home Assistant permission in WHAT. Cloud connections also need both cloud permissions."
+    },
+    "enable_displays_and_its_ha_control_permission_on_the": {
+      "message": "Enable Displays and its Home Assistant control permission on the PC; resolve any interrupted/failed display change first"
+    },
+    "this_monitor_mode_is_no_longer_available": {
+      "message": "This monitor mode is no longer available"
+    },
+    "layout_is_missing_or_a_required_monitor_is_disconnected": {
+      "message": "Layout is missing or a required monitor is disconnected"
+    },
+    "choose_the_what_display_arrangement_sensor": {
+      "message": "Choose the WHAT Display arrangement sensor"
+    },
+    "this_what_pc_is_not_loaded": {
+      "message": "This WHAT PC is not loaded"
+    },
+    "enable_displays_and_ha_display_control_update_what_and": {
+      "message": "Enable Displays and Home Assistant display control, update WHAT, and resolve any pending recovery first"
+    },
+    "a_display_is_no_longer_connected_reload_the_preview": {
+      "message": "A display is no longer connected; reload the preview"
+    },
+    "enable_what_dynamic_lighting_home_assistant_control_and_windows": {
+      "message": "Enable WHAT Dynamic Lighting, Home Assistant control and Windows lighting priority"
+    },
+    "enable_the_icue_module_and_remote_control_permission_on": {
+      "message": "Enable the iCUE module and remote-control permission on the PC"
+    },
+    "enable_icue_profiles_device_controls_and_its_home_assistant": {
+      "message": "Enable iCUE Profiles & device controls and its Home Assistant permission on the PC; approve SDK access in iCUE"
+    },
+    "that_icue_preset_is_no_longer_available": {
+      "message": "That iCUE preset is no longer available"
+    },
+    "enable_icue_profiles_device_controls_and_its_home_assistant_permission_approve_sdk_access_in_icue": {
+      "message": "Enable iCUE Profiles & device controls and its Home Assistant permission; approve SDK access in iCUE"
+    },
+    "the_current_lighting_link_effect_does_not_support_this": {
+      "message": "The current Lighting Link effect does not support this parameter"
+    },
+    "unsupported_lighting_link_effect": {
+      "message": "Unsupported Lighting Link effect"
+    },
+    "no_supported_lighting_link_effects": {
+      "message": "No supported Lighting Link effects"
+    },
+    "this_effect_has_no_adjustable_colour_brightness_slot": {
+      "message": "This effect has no adjustable colour/brightness slot"
+    },
+    "invalid_lighting_link_colour_or_brightness": {
+      "message": "Invalid Lighting Link colour or brightness"
+    },
+    "invalid_lighting_link_option": {
+      "message": "Invalid Lighting Link option"
+    },
+    "enable_modules_windows_keyboard_and_mouse_from_ha_on": {
+      "message": "Enable Modules > Windows > Keyboard and Mouse from Home Assistant on the PC"
+    },
+    "enable_modules_windows_notifications_from_ha_on_the_pc": {
+      "message": "Enable Modules > Windows > Notifications from Home Assistant on the PC"
+    },
+    "add_an_action_without_a_url_to_submit_the": {
+      "message": "Add an action without a URL to submit the reply to Home Assistant"
+    },
+    "update_the_installed_what_app_to_use_rich_notifications": {
+      "message": "Update the installed WHAT app to use rich notifications"
+    },
+    "power_plan_is_no_longer_available": {
+      "message": "Power plan is no longer available"
+    },
+    "invalid_equalizer_preset": {
+      "message": "Invalid equalizer preset"
+    },
+    "invalid_power_mode": {
+      "message": "Invalid power mode"
+    },
+    "enable_remote_shell_commands_in_the_pc_s_windows": {
+      "message": "Enable remote shell commands in the PC's Windows module"
+    },
+    "distribution_applies_only_to_wsl": {
+      "message": "Distribution applies only to WSL"
+    },
+    "windows_did_not_return_a_command_result": {
+      "message": "Windows did not return a command result"
+    },
+    "enter_an_http_or_https_url": {
+      "message": "Enter an HTTP or HTTPS URL."
+    },
+    "enable_wallpaper_engine_and_home_assistant_control_on_the": {
+      "message": "Enable Wallpaper Engine and Home Assistant control on the PC, and start Wallpaper Engine"
+    }
+  },
+  "selector": {
+    "connection": {
+      "options": {
+        "api": "WHAT API (Recommended)",
+        "mqtt": "MQTT"
+      }
+    }
+  }
+}

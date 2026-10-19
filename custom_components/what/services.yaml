@@ -1,0 +1,332 @@
+run_command:
+  name: Run Windows command
+  description: Execute a shell command as the PC's current user. Requires PC-side permission and Home Assistant administrator access. Does not retry. Output may appear in automation traces.
+  fields:
+    device_id:
+      description: The paired Windows PC that will receive this action.
+      name: WHAT PC
+      required: true
+      selector:
+        device:
+          integration: what
+    shell:
+      description: Windows PowerShell, installed PowerShell 7, CMD or WSL.
+      name: Shell
+      required: true
+      default: powershell
+      selector:
+        select:
+          options:
+            - label: Windows PowerShell
+              value: powershell
+            - label: PowerShell 7 (installed separately)
+              value: pwsh
+            - label: Command Prompt
+              value: cmd
+            - label: WSL Linux
+              value: wsl
+    command:
+      name: Command
+      description: Up to 2048 characters. Non-interactive; no elevation prompt.
+      required: true
+      example: Get-Service Spooler
+      selector:
+        text:
+          multiline: true
+    timeout:
+      description: Maximum run time in seconds, from 1 to 300.
+      name: Timeout
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 300
+          step: 1
+          unit_of_measurement: s
+          mode: box
+    leave_running:
+      name: Leave launched apps running
+      description: "Keep child applications open after the shell exits successfully. Timeout, cancellation or failure still stops them. WHAT cannot cancel released applications later. Windows shells only, not WSL. Use Start-Process in PowerShell or start \"\" \"app.exe\" in CMD so the shell finishes instead of waiting for the app."
+      default: false
+      selector:
+        boolean:
+    distribution:
+      name: WSL distribution
+      description: Optional installed distribution, such as Ubuntu. Leave unset for the WSL default. WSL requires the Linux timeout utility.
+      selector:
+        text:
+
+send_notification:
+  name: Send Windows notification
+  description: Send a notification to one PC. Images, replies, longer text and action buttons require installed WHAT. Windows notification settings may suppress it. Limited to one per second.
+  fields:
+    device_id:
+      description: The paired Windows PC that will receive this action.
+      name: WHAT PC
+      required: true
+      selector:
+        device:
+          integration: what
+    title:
+      name: Title
+      description: One line, up to 128 Windows text units. Emoji can count as two. Portable notifications allow 63.
+      default: Home Assistant
+      selector:
+        text:
+    message:
+      name: Message
+      description: Up to 2000 Windows text units. Plain text; line breaks are allowed. Portable notifications allow 255.
+      required: true
+      example: Your washing is finished.
+      selector:
+        text:
+          multiline: true
+    level:
+      name: Notification icon
+      description: Selects the icon; does not bypass Do not disturb.
+      default: information
+      selector:
+        select:
+          options:
+            - label: Information
+              value: information
+            - label: Warning
+              value: warning
+            - label: Error
+              value: error
+    notification_id:
+      name: Notification ID
+      description: Optional ID, up to 64 characters. Reusing it replaces the previous notification. Included in action events.
+      selector:
+        text:
+    image:
+      name: Image URL
+      description: HTTP or HTTPS image reachable from the PC, up to 2 MiB and 4096 pixels per side.
+      selector:
+        text:
+    actions:
+      name: Action buttons
+      description: Up to four objects with id and title. Optional url opens a web page; other buttons fire what_notification_action in Home Assistant. OPEN is reserved for clicking the notification body.
+      selector:
+        object:
+    reply:
+      name: Include a reply box
+      description: Add at least one action without a URL. Its click sends the reply text in the Home Assistant event.
+      selector:
+        boolean:
+    silent:
+      description: Send without a notification sound. Windows notification settings still apply.
+      name: Silent
+      selector:
+        boolean:
+    ttl:
+      name: Expires after
+      description: Defaults to 600 seconds. Expired action clicks are ignored.
+      selector:
+        number:
+          min: 1
+          max: 3600
+          unit_of_measurement: s
+          mode: box
+
+send_keyboard:
+  name: Send keyboard input
+  description: Press a shortcut or type text into the active Windows window. Requires PC input permission and Home Assistant administrator access. Does not retry.
+  fields:
+    device_id:
+      description: The paired Windows PC that will receive this action.
+      name: WHAT PC
+      required: true
+      selector:
+        device:
+          integration: what
+    keys:
+      name: Shortcut keys
+      description: Select modifiers first, then the key. Leave empty when sending text.
+      example: '["CTRL", "SHIFT", "S"]'
+      selector:
+        select:
+          multiple: true
+          custom_value: true
+          options: [CTRL, ALT, SHIFT, WIN, ENTER, TAB, ESC, SPACE, BACKSPACE, DELETE, LEFT, RIGHT, UP, DOWN, A, C, V, S, F5]
+    text:
+      name: Text to type
+      description: Up to 1024 UTF-16 units. Leave keys empty. Text may appear in Home Assistant traces; not logged on the PC.
+      selector:
+        text:
+          multiline: true
+send_mouse:
+  name: Send mouse input
+  description: Move or click at physical desktop pixel coordinates across all monitors. Negative coordinates are supported. Requires PC input permission and Home Assistant administrator access.
+  fields:
+    device_id:
+      description: The paired Windows PC that will receive this action.
+      name: WHAT PC
+      required: true
+      selector:
+        device:
+          integration: what
+    x:
+      description: Horizontal position in physical desktop pixels. Negative values address monitors left of the main display.
+      name: X coordinate
+      required: true
+      selector:
+        number:
+          min: -100000
+          max: 100000
+          mode: box
+          step: 1
+    y:
+      description: Vertical position in physical desktop pixels. Negative values address monitors above the main display.
+      name: Y coordinate
+      required: true
+      selector:
+        number:
+          min: -100000
+          max: 100000
+          mode: box
+          step: 1
+    button:
+      description: Choose a button to click, or none to move the pointer only.
+      name: Mouse button
+      default: none
+      selector:
+        select:
+          options: [none, left, right, middle]
+    clicks:
+      name: Click count
+      description: Optional; defaults to one when a button is selected. Omit for movement only.
+      selector:
+        number:
+          min: 1
+          max: 2
+          mode: box
+          step: 1
+
+apply_display_layout:
+  name: Apply display layout
+  description: Apply a staged arrangement from the WHAT display card. Requires administrator access and PC display-control permission. No automatic rollback or retry.
+  fields:
+    entity_id:
+      description: The display arrangement sensor belonging to the PC to change.
+      name: Display arrangement sensor
+      required: true
+      selector:
+        entity:
+          integration: what
+          domain: sensor
+    layout:
+      description: The requested monitor arrangement, generated by the WHAT display card.
+      name: Requested layout
+      required: true
+      selector:
+        object:
+    expected:
+      name: Original layout
+      description: The arrangement before editing. A newer Windows layout causes rejection.
+      required: true
+      selector:
+        object:
+
+speak:
+  name: Speak
+  description: Speak on a PC using an installed Windows voice. Requires Speech and Audio permission in WHAT. Replaces the current announcement.
+  fields:
+    device_id:
+      description: The paired Windows PC that will receive this action.
+      name: WHAT PC
+      required: true
+      selector:
+        device:
+          integration: what
+    message:
+      description: The text to speak on the selected PC.
+      name: Message
+      required: true
+      selector:
+        text:
+          multiline: true
+    voice:
+      name: Windows voice ID
+      description: Optional installed voice ID, listed under Speech and Audio in WHAT. Omit for the Windows default voice.
+      selector:
+        text:
+    rate:
+      description: Playback speed from 0.5 to 2. Use 1 for normal speed.
+      name: Speech rate
+      selector:
+        number:
+          min: 0.5
+          max: 2
+          step: 0.1
+          mode: box
+    volume:
+      name: Announcement volume
+      description: WHAT player volume only. Does not change Windows master volume.
+      selector:
+        number:
+          min: 0
+          max: 1
+          step: 0.05
+          mode: box
+
+wallpaper_engine:
+  name: Wallpaper Engine
+  description: Control Wallpaper Engine on one PC. Requires the module and Home Assistant control permission in WHAT. Commands are not retried.
+  fields:
+    device_id:
+      description: The paired Windows PC that will receive this action.
+      name: WHAT PC
+      required: true
+      selector:
+        device:
+          integration: what
+    operation:
+      description: The Wallpaper Engine action to run on the selected PC.
+      name: Operation
+      required: true
+      selector:
+        select:
+          options:
+            - play
+            - pause
+            - stop
+            - mute
+            - unmute
+            - openWallpaper
+            - nextWallpaper
+            - closeWallpaper
+            - openPlaylist
+            - openProfile
+            - applyProperties
+            - hideIcons
+            - showIcons
+            - getWallpaper
+    file:
+      name: Wallpaper file
+      description: Wallpaper file path on the Windows PC, for openWallpaper.
+      selector:
+        text:
+    playlist:
+      name: Playlist
+      description: Saved Wallpaper Engine playlist name, for openPlaylist.
+      selector:
+        text:
+    profile:
+      name: Profile
+      description: Saved display profile name, for openProfile.
+      selector:
+        text:
+    monitor:
+      name: Monitor
+      description: Wallpaper Engine monitor index (0 is the first). Omit for the operation's default target.
+      selector:
+        number:
+          min: 0
+          max: 63
+          mode: box
+    options:
+      name: Options
+      description: Optional file, playlist, profile, monitor (0-based), location, preset, window parameters or properties object. Paths refer to the Windows PC.
+      selector:
+        object:
