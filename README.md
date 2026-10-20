@@ -40,6 +40,8 @@ which readings and controls each can access.
 
 [Windows application](https://github.com/Chuffnugget/what-windows#readme) - install on each PC you want to connect.
 
+![WHAT Overview showing Home Assistant connectivity, shared sensors and module status](documentation/images/what-overview.png)
+
 This repository contains the Home Assistant integration and requires Home
 Assistant 2026.9+. Each PC has a parent WHAT device, with module devices beneath
 it. Entity IDs remain stable when switching between WHAT API and MQTT.
