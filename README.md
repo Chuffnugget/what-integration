@@ -70,10 +70,6 @@ For manual installation, copy `custom_components/what` into
 Discovery uses local multicast. If it is blocked, use manual pairing. Keep the
 private certificate key on the PC.
 
-## Key Features
-
-Add sensors like CPU and GPU temperatures to System Tray Icons or Taskbar Icon.
-
 ## Planned features
 
 - Desktop widgets for Home Assistant entities.
