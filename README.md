@@ -70,6 +70,19 @@ For manual installation, copy `custom_components/what` into
 Discovery uses local multicast. If it is blocked, use manual pairing. Keep the
 private certificate key on the PC.
 
+## Key Features
+
+Add sensors like CPU and GPU temperatures to System Tray Icons or Taskbar Icon.
+
+## Planned features
+
+- Desktop widgets for Home Assistant entities.
+- Native controls for Home Assistant entities.
+- Linux desktop app support, with **LHAT** as a tentative name.
+
+These features are not available yet and have no release date. The Home Assistant
+Web module already provides access to your dashboard through an embedded browser.
+
 ## Multiple Home Assistant Installations
 
 Use **WHAT > Settings > Home Assistant Installations** to add, name, edit,
