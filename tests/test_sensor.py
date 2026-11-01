@@ -15,7 +15,7 @@ def sensor(monkeypatch):
         pass
     classes = types.SimpleNamespace(**{name: name.lower() for name in (
         "TEMPERATURE", "VOLTAGE", "CURRENT", "POWER", "FREQUENCY", "DATA_SIZE",
-        "DATA_RATE", "DURATION", "TIMESTAMP", "ENUM")})
+        "DATA_RATE", "DURATION", "TIMESTAMP", "ENUM", "SIGNAL_STRENGTH", "DISTANCE")})
     for name, values in {
         "homeassistant": {}, "homeassistant.components": {},
         "homeassistant.components.sensor": {"SensorDeviceClass": classes, "SensorEntity": Sensor, "SensorStateClass": str},
@@ -211,3 +211,14 @@ def test_coretemp_margin_is_not_an_absolute_temperature(sensor):
     assert margin._attr_device_class is None
     assert margin._attr_native_unit_of_measurement == "°C"
     assert temperature._attr_device_class == "temperature"
+
+
+@pytest.mark.parametrize("unit,device_class,value", [("dBm", "signal_strength", -64), ("m", "distance", 12.5)])
+def test_optional_windows_units(sensor, unit, device_class, value):
+    row = {"source": "windows", "group": "Optional", "name": "Reading", "unit": unit,
+           "kind": "number", "value": value, "state_class": "measurement"}
+    entity = sensor.HardwareSensor(types.SimpleNamespace(readings={"optional": row}), "optional", row)
+    assert entity._attr_device_class == device_class
+    assert entity._attr_native_unit_of_measurement == unit
+    assert entity.native_value == value
+    assert entity._attr_state_class == "measurement"

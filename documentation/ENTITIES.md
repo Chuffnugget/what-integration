@@ -255,3 +255,30 @@ Enable Modules > NVIDIA in WHAT to share driver-native GPU temperature, utilisat
 ## Visual display arrangement
 
 The bundled [WHAT display layout card](DISPLAY-CARD.md) adds drag-and-drop positioning, rotation, inactive displays, mode selection and one Apply layout action to a Home Assistant dashboard. The integration loads the card automatically. After updating the integration, restart Home Assistant and refresh the browser.
+
+
+## Optional Windows device readings
+
+In WHAT, open **Modules > Windows** and explicitly enable the sources you want.
+Audio Device Activity, Live Audio Levels, Camera Usage, Printers, Windows Updates,
+Virtual Desktop, Location, Bluetooth Devices and Nearby Bluetooth LE Devices are
+all off by default. Then select individual readings in **Sensors**, including
+whether they may be shared over Local and Cloud connections. Home Assistant
+cannot enable these collectors through the sensor entities.
+
+These readings use the existing connection and appear under the PC's Windows
+sensors. Activity and connection flags are binary sensors; levels and counts are
+numeric sensors; application names and device status are text readings. BLE
+signal uses dBm and location accuracy/altitude use metres with the corresponding
+Home Assistant device classes. Last-seen and position times are timestamps.
+
+Audio meters represent signal strength, not the volume setting, and no audio or
+camera images are sent. Camera activity is based on Windows usage records and can
+be incomplete or stale. Windows Updates reads the cached catalogue rather than
+starting an online update search. Bluetooth battery readings appear only when
+Windows exposes them; passive BLE scanning is not a Bluetooth proxy.
+
+Disabling a collector immediately withholds its cached and pending readings.
+Previously shared values can remain in Home Assistant's recorder history.
+See the [Windows user guide](https://github.com/Chuffnugget/what-windows/blob/main/documentation/USER-GUIDE.md#optional-windows-device-sensors)
+for intervals, permission prompts and platform limitations.

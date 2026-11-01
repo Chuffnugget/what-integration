@@ -30,6 +30,8 @@ UNITS = {
     "GB/s": ("GB/s", SensorDeviceClass.DATA_RATE),
     "bit/s": ("bit/s", SensorDeviceClass.DATA_RATE),
     "s": ("s", SensorDeviceClass.DURATION),
+    "dBm": ("dBm", SensorDeviceClass.SIGNAL_STRENGTH),
+    "m": ("m", SensorDeviceClass.DISTANCE),
 }
 
 

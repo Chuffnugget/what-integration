@@ -31,7 +31,7 @@ def platforms(monkeypatch):
 
     classes = types.SimpleNamespace(**{key: key.lower() for key in (
         "TEMPERATURE", "VOLTAGE", "CURRENT", "POWER", "FREQUENCY", "DATA_SIZE",
-        "DATA_RATE", "DURATION", "TIMESTAMP", "ENUM",
+        "DATA_RATE", "DURATION", "TIMESTAMP", "ENUM", "SIGNAL_STRENGTH", "DISTANCE",
     )})
     ignore = lambda *args, **kwargs: None
     definitions = {
