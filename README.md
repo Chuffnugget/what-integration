@@ -48,6 +48,16 @@ it. Entity IDs remain stable when switching between WHAT API and MQTT.
 
 ## Install and pair
 
+Download the latest stable Windows installer for your PC:
+
+| PC type | Installer |
+| --- | --- |
+| Intel / AMD (x64) | [Download x64 Setup EXE](https://github.com/Chuffnugget/what-windows/releases/latest/download/WHAT-Windows-x64-Setup.exe) |
+| Windows on ARM (ARM64) | [Download ARM64 Setup EXE](https://github.com/Chuffnugget/what-windows/releases/latest/download/WHAT-Windows-arm64-Setup.exe) |
+
+These links follow stable releases only. Until the first stable release is published,
+use the [beta installers on Windows releases](https://github.com/Chuffnugget/what-windows/releases).
+
 In HACS, open **Custom repositories**, add
 `https://github.com/Chuffnugget/what-integration` with category **Integration**,
 then download WHAT and restart Home Assistant.
