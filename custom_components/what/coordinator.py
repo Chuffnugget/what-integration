@@ -312,7 +312,9 @@ class WhatCoordinator(DataUpdateCoordinator[dict]):
                 and not self.entry.options.get("mqtt_enabled", False)
             ):
                 raise ConfigEntryNotReady(
-                    "Cannot connect to the paired PC; check app, address and fingerprint",
+                    "Cannot reach the paired PC. It may be offline, asleep or switched off; "
+                    "Home Assistant will retry automatically. If the PC is online, "
+                    "check that WHAT is running and verify its address, port and pairing fingerprint.",
                     translation_domain="what",
                     translation_key="cannot_connect_to_the_paired_pc_check_app_address",
                 ) from err

@@ -6,7 +6,7 @@ APP_SENSORS = {
     "app_uptime": "App uptime",
     "app_last_seen": "Last seen",
     "app_cpu": "WHAT CPU usage",
-    "app_memory": "WHAT memory usage",
+    "app_memory": "WHAT Windows memory usage",
 }
 
 CONNECTION_SENSORS = {

@@ -48,7 +48,7 @@
       }
     },
     "error": {
-      "cannot_connect": "Cannot connect. Check that WHAT is running, the address and port are correct, and Windows Firewall allows the connection.",
+      "cannot_connect": "Cannot reach the PC. It may be offline, asleep or switched off. If it is online, check that WHAT is running, the address and port are correct, and Windows Firewall allows the connection.",
       "invalid_auth": "Pairing token rejected. Copy the current token from the PC app.",
       "fingerprint_mismatch": "Certificate mismatch. Copy the fingerprint directly from the intended PC; it may have been reset.",
       "invalid_input": "Enter the copied PC device ID, a PC name (up to 80 characters), a 64-character hexadecimal pairing token and the full certificate fingerprint. If using a local PC address, enter a hostname or IP without wss:// and a port from 1 to 65535.",
@@ -278,7 +278,7 @@
         "name": "WHAT CPU usage"
       },
       "app_memory": {
-        "name": "WHAT memory usage"
+        "name": "WHAT Windows memory usage"
       },
       "connection_uptime": {
         "name": "Connection uptime"
@@ -494,7 +494,7 @@
       "message": "Update the WHAT pairing token"
     },
     "cannot_connect_to_the_paired_pc_check_app_address": {
-      "message": "Cannot connect to the paired PC; check app, address and fingerprint"
+      "message": "Cannot reach the paired PC. It may be offline, asleep or switched off; Home Assistant will retry automatically. If the PC is online, check that WHAT is running and verify its address, port and pairing fingerprint."
     },
     "check_the_custom_module_global_saved_command_permission_and": {
       "message": "Check the Custom module, global saved-command permission and this command's Home Assistant permission in WHAT. Cloud connections also need both cloud permissions."
