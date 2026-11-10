@@ -6,7 +6,7 @@ from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from .const import DOMAIN
-from .service_target import coordinator_for_device
+from .service_target import coordinator_for_device, require_admin
 
 
 def bounded_text(maximum, single_line=False):
@@ -63,6 +63,7 @@ SCHEMA = vol.Schema({
 
 def register_notification_service(hass):
     async def send_notification(call):
+        await require_admin(hass, call)
         coordinator = coordinator_for_device(hass, call.data["device_id"][0])
         if (
             not coordinator.last_update_success

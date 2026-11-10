@@ -16,7 +16,7 @@ def service(monkeypatch):
             self.__dict__.update(kwargs)
     for name, values in {
         "homeassistant": {}, "homeassistant.core": {"SupportsResponse": types.SimpleNamespace(OPTIONAL=1)},
-        "homeassistant.exceptions": {"HomeAssistantError": Error}, "homeassistant.helpers": {},
+        "homeassistant.exceptions": {"HomeAssistantError": Error, "Unauthorized": PermissionError}, "homeassistant.helpers": {},
         "homeassistant.helpers.config_validation": {"string": str, "ensure_list": lambda x: x if isinstance(x, list) else [x]},
         "homeassistant.helpers.device_registry": {"async_get": lambda hass: hass.registry},
     }.items():
@@ -61,6 +61,7 @@ def test_notification_service(service):
             config_entries=types.SimpleNamespace(async_get_entry=lambda id: entry))
         service.register_notification_service(hass)
         call = types.SimpleNamespace(
+            context=types.SimpleNamespace(user_id=None),
             data=service.SCHEMA({"device_id": "pc", "message": "Line one\nLine two"}),
         )
         assert call.data["title"] == "Home Assistant"
@@ -79,3 +80,68 @@ def test_notification_service(service):
             await handlers["send_notification"](call)
         assert client.command.await_count == 2 # No retry.
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("action", ["send_notification", "speak"])
+@pytest.mark.parametrize("caller", ["readonly", "regular", "missing", "admin", "automation"])
+def test_pc_services_authorize_user_before_dispatch(service, monkeypatch, action, caller):
+    # These are plain services, not entity services: HA does not authorize their targets for us.
+    for name, values in {
+        "homeassistant.components": {"media_source": types.SimpleNamespace()},
+        "homeassistant.components.media_player": {
+            "MediaPlayerEntity": type("MediaPlayerEntity", (), {}),
+            "MediaPlayerEntityFeature": types.SimpleNamespace(**{
+                key: 1 << index for index, key in enumerate(
+                    ["PLAY_MEDIA", "PLAY", "PAUSE", "STOP", "VOLUME_SET", "VOLUME_MUTE"])
+            }),
+            "MediaPlayerState": types.SimpleNamespace(),
+            "async_process_play_media_url": lambda hass, url: url,
+        },
+        "homeassistant.helpers.network": {"get_url": lambda *a, **k: "https://example.invalid", "is_hass_url": lambda *a: False},
+        "what_under_test.entity": {"WhatEntity": type("WhatEntity", (), {})},
+    }.items():
+        module = types.ModuleType(name)
+        module.__dict__.update(values)
+        monkeypatch.setitem(sys.modules, name, module)
+    monkeypatch.delitem(sys.modules, "what_under_test.announcements", raising=False)
+    speech = importlib.import_module("what_under_test.announcements")
+
+    async def run():
+        client = types.SimpleNamespace(command=AsyncMock(return_value={"ok": True}))
+        coordinator = types.SimpleNamespace(last_update_success=True, client=client, data={
+            "controls": {"notifications_enabled": True}, "announcements": {"enabled": True}})
+        entry = types.SimpleNamespace(domain="what", runtime_data=coordinator)
+        handlers = {}
+        user = None if caller == "missing" else types.SimpleNamespace(is_admin=caller == "admin")
+        hass = types.SimpleNamespace(
+            auth=types.SimpleNamespace(async_get_user=AsyncMock(return_value=user)),
+            services=types.SimpleNamespace(async_register=lambda d, n, h, **k: handlers.update({n: h})),
+            registry=types.SimpleNamespace(async_get=lambda identifier: types.SimpleNamespace(config_entries={"entry"})),
+            config_entries=types.SimpleNamespace(async_get_entry=lambda identifier: entry),
+        )
+        service.register_notification_service(hass)
+        speech.register_speech_service(hass)
+        schema = service.SCHEMA if action == "send_notification" else speech.SPEECH_SCHEMA
+        call = types.SimpleNamespace(context=types.SimpleNamespace(user_id=None if caller == "automation" else caller),
+            data=schema({"device_id": "pc", "message": "Isolated permission fixture"}))
+        if caller not in ("admin", "automation"):
+            with pytest.raises(PermissionError):
+                await handlers[action](call)
+            client.command.assert_not_awaited()
+        else:
+            await handlers[action](call)
+            assert client.command.await_count == 1
+            # Even administrators and internal automations still need PC-side opt-in.
+            coordinator.data["controls"]["notifications_enabled"] = False
+            coordinator.data["announcements"]["enabled"] = False
+            with pytest.raises(service.HomeAssistantError):
+                await handlers[action](call)
+            assert client.command.await_count == 1
+        if caller == "automation":
+            hass.auth.async_get_user.assert_not_awaited()
+        else:
+            hass.auth.async_get_user.assert_awaited()
+    try:
+        asyncio.run(run())
+    finally:
+        sys.modules.pop("what_under_test.announcements", None)

@@ -16,7 +16,7 @@ from homeassistant.helpers.network import get_url, is_hass_url
 from .const import DOMAIN
 from .entity import WhatEntity
 from .notification_service import bounded_text
-from .service_target import coordinator_for_device
+from .service_target import coordinator_for_device, require_admin
 
 
 def permitted(coordinator):
@@ -141,6 +141,7 @@ SPEECH_SCHEMA = vol.Schema({
 
 def register_speech_service(hass):
     async def speak(call):
+        await require_admin(hass, call)
         await send(coordinator_for_device(hass, call.data["device_id"][0]), "speak", {key: value for key, value in call.data.items() if key != "device_id"})
 
     hass.services.async_register(DOMAIN, "speak", speak, schema=SPEECH_SCHEMA)

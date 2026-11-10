@@ -2,6 +2,16 @@
 from .const import DOMAIN
 
 
+async def require_admin(hass, call):
+    """Plain PC services require an administrator; internal automations have no user."""
+    from homeassistant.exceptions import Unauthorized
+
+    if call.context.user_id:
+        user = await hass.auth.async_get_user(call.context.user_id)
+        if user is None or not user.is_admin:
+            raise Unauthorized()
+
+
 def coordinator_for_device(hass, device_id):
     """Return the loaded coordinator for a device picked in a service call.
 
