@@ -89,6 +89,17 @@ private certificate key on the PC.
 These features are not available yet and have no release date. The Home Assistant
 Web module already provides access to your dashboard through an embedded browser.
 
+## Dashboard cards
+
+Add **WHAT Sensor Panel** from the dashboard card picker to show compact sensor
+tiles and history lines. Choose each sensor, label, colour and graph setting in
+the visual editor. Slots are generic, with optional suggestions for CPU temperature,
+load, memory and other readings. When all selected readings are unavailable, the card shows
+the PC's hostname with an offline display. No extra frontend plugins are needed.
+
+[Sensor graph setup and options](documentation/SENSOR-GRAPH-CARD.md) ·
+[Interactive display layout card](documentation/DISPLAY-CARD.md)
+
 ## Multiple Home Assistant Installations
 
 Use **WHAT > Settings > Home Assistant Installations** to add, name, edit,

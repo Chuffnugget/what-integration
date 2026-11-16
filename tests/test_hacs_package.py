@@ -20,6 +20,9 @@ def test_release_asset_layout_and_manifest(tmp_path):
     with ZipFile(output) as archive:
         names = archive.namelist()
         assert "manifest.json" in names and "__init__.py" in names
+        for card in ("display-layout-card.js", "sensor-graph-card.js"):
+            asset = f"frontend/{card}"
+            assert archive.read(asset) == (ROOT / "custom_components/what" / asset).read_bytes()
         assert not any(
             (name.startswith("custom_components/") or "__pycache__" in name or name.endswith(".pyc") for name in names),
         )

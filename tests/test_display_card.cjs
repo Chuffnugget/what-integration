@@ -64,6 +64,53 @@ assert.equal(await page.evaluate(()=>card._dirty),false);
 await page.screenshot({path:path.join(process.env.WHAT_CARD_ARTIFACTS||require('os').tmpdir(),'display-card-desktop.png'),fullPage:true});
 await page.setViewportSize({width:390,height:1100});await page.screenshot({path:path.join(process.env.WHAT_CARD_ARTIFACTS||require('os').tmpdir(),'display-card-mobile.png'),fullPage:true});
 assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+// Reproduce the reported pair of adjacent 4K screens. Decoration and controls
+// must fit their own rectangles at dashboard-column and phone widths too.
+await page.evaluate(()=>{
+ Object.assign(fixtureMonitors[0],{enabled:true,primary:true,group:'a'.repeat(24),x:0,y:0,width:3840,height:2160,rotation:1,name:'Odyssey G8 · 41b653'});
+ Object.assign(fixtureMonitors[1],{enabled:true,primary:false,group:'b'.repeat(24),x:3840,y:0,width:3840,height:2160,rotation:1,name:'BenQ EW3270U · 4b4c9a'});
+ card.hass=fixtureHass;card.reload();
+});
+for(const width of [980,440,280]) {
+ await page.setViewportSize({width:1120,height:1100});
+ await page.evaluate(width=>{card.style.width=width+'px';},width);
+ await page.waitForFunction(width=>Math.abs(card._observedWidth-width)<1,width);
+ const geometry=await page.evaluate(()=>{
+  const root=card.shadowRoot,rect=el=>el.getBoundingClientRect();
+  const within=(child,parent)=>child.left>=parent.left-1 && child.top>=parent.top-1 && child.right<=parent.right+1 && child.bottom<=parent.bottom+1;
+  const tiles=[...root.querySelectorAll('.screen')],board=rect(root.querySelector('.board'));
+  return {
+   contained:tiles.every(tile=>within(rect(tile),board)),
+   controls:tiles.every(tile=>[...tile.querySelectorAll('strong,.rotate,.monitor-name,.resolution,.primary-marker')].every(el=>!el.getClientRects().length || within(rect(el),rect(tile)))),
+   outline:getComputedStyle(root.querySelector('.screen.selected')).outlineStyle,
+   overlap:rect(tiles[0]).right>rect(tiles[1]).left+1,
+   overflow:root.querySelector('.wrap').scrollWidth>root.querySelector('.wrap').clientWidth,
+  };
+ });
+ assert.equal(geometry.contained,true,`Screen bounds at ${width}px`);
+ assert.equal(geometry.controls,true,`In-tile controls at ${width}px`);
+ assert.equal(geometry.outline,'none');
+ assert.equal(geometry.overlap,false);
+ assert.equal(geometry.overflow,false);
+ await page.locator('.board').screenshot({path:path.join(process.env.WHAT_CARD_ARTIFACTS||require('os').tmpdir(),`display-card-adjacent-${width}.png`)});
+}
+// Small canvases still retain full names and orientation controls below them.
+assert.match(await page.locator('[data-field="selected"]').innerText(),/Odyssey G8.*41b653/);
+await page.locator('[data-field="selected"]').selectOption(B);
+await page.locator('[data-field="rotation"]').selectOption('2');
+assert.equal(await page.evaluate(()=>card._draft[1].rotation),2);
+assert.equal(await page.evaluate(()=>card._draft[1].width),2160);
+await page.evaluate(()=>{
+ Object.assign(fixtureMonitors[1],{group:'a'.repeat(24),x:0,y:0,width:3840,height:2160,rotation:1});
+ Object.assign(fixtureMonitors[2],{enabled:true,group:'c'.repeat(24),x:3840,y:0,width:3840,height:2160,rotation:1});
+ card.style.width='350px';card.hass=fixtureHass;card.reload();
+});
+await page.waitForFunction(()=>card._observedWidth===350);
+assert.ok(await page.evaluate(()=>[...card.shadowRoot.querySelectorAll('.screen')].every(tile=>{
+ const number=tile.querySelector('strong').getBoundingClientRect(),rotate=tile.querySelector('.rotate'),marker=tile.querySelector('.primary-marker');
+ return (!rotate.getClientRects().length || number.right<=rotate.getBoundingClientRect().left)
+  && (!marker || number.left>=marker.getBoundingClientRect().right);
+})), 'Mirrored display numbers must not collide with rotation or primary controls');
 await page.evaluate(()=>{fixtureHass.states['sensor.pc_display_arrangement'].attributes.control_enabled=false;card.hass=fixtureHass;});assert.ok(await page.locator('[data-action="apply"]').isDisabled());
 await page.evaluate(async()=>{await import('/card.js?manual=1');});assert.equal(await page.evaluate(()=>window.customCards.filter(c=>c.type==='what-display-layout-card').length),1);
 assert.deepEqual(errors,[]);await browser.close();console.log('PASS: primary normalization, staged rotation/drag, inactive drop, duplicate, stale state, mobile width, permissions; no browser errors.');

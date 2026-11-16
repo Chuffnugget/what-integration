@@ -22,6 +22,7 @@ Select the actual Display arrangement sensor belonging to your PC. Entity names 
 
 - Drag monitor rectangles to move them. Edges snap and alignment guides appear. Coordinates describe desktop pixels, not monitor physical dimensions or DPI scaling.
 - Drag a monitor's rotation handle for 90-degree steps, or use Rotate / Orientation. A duplicated desktop group rotates together.
+- Rotation handles and the selected-display highlight stay inside each screen. Small previews reduce their labels to display numbers; the selected-display menu retains the full names and all controls. The star marks the primary display.
 - Drag an inactive, physically connected display onto the canvas, or select it and choose Enable / Extend desktop. A physically unplugged display cannot be activated.
 - Select a monitor for resolution, refresh rate and Make primary. Options come from Windows' reported modes; Windows/graphics drivers may reject or adjust a requested combination. Current values remain available when enumeration supplies no alternatives.
 - Duplicate and Disable are explicit actions. Overlapping independent monitors is rejected; dropping outside the canvas does not silently disable a display. At least one active display is required.
