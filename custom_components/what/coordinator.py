@@ -295,6 +295,7 @@ class WhatCoordinator(DataUpdateCoordinator[dict]):
             self._wait_for_authenticated_connection()
             return
         _LOGGER.debug("WHAT %s: opening paired direct connection", self.entry.unique_id)
+        active = False
         try:
             self.hello, data = await self.client.connect()
             data = await self.client.activate_transport(data)
@@ -319,8 +320,14 @@ class WhatCoordinator(DataUpdateCoordinator[dict]):
                     translation_key="cannot_connect_to_the_paired_pc_check_app_address",
                 ) from err
             self._wait_for_authenticated_connection()
-            return
-        self._accept(data)
+        else:
+            self._accept(data)
+            active = True
+        finally:
+            # The stream loop treats an open socket as a usable route. Activation
+            # can time out or be cancelled after the socket has authenticated.
+            if not active:
+                await self.client.close()
 
     def start(self) -> None:
         self._task = self.hass.async_create_background_task(self._run(), "WHAT stream")

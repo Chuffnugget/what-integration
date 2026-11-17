@@ -57,7 +57,25 @@ export function snapPosition(monitors,id,x,y,threshold) {
 }
 class WhatDisplayLayoutCard extends HTMLElement {
   constructor(){super();this.attachShadow({mode:"open"});this._draft=[];this._selected="";this._dirty=false;this._pending=false;this._message="";this._conflict=false;}
-  setConfig(config){if(!config.entity?.startsWith("sensor."))throw Error("Select the WHAT Display arrangement sensor.");if(this._config?.entity!==config.entity){this._draft=[];this._base="";this._dirty=false;this._conflict=false;}this._config={title:"Displays",...config};this.render();}
+  setConfig(config){
+    if(!config.entity?.startsWith("sensor."))throw Error("Select the WHAT Display arrangement sensor.");
+    const entityChanged=this._config?.entity!==config.entity;
+    if(entityChanged){
+      this.clearRequest();
+      this._incomingMonitors=undefined;
+      this._metadata=undefined;
+      this._status=undefined;
+      this._state=undefined;
+      this._draft=[];
+      this._base="";
+      this._dirty=false;
+      this._conflict=false;
+      this._message="";
+    }
+    this._config={title:"Displays",...config};
+    if(entityChanged && this._hass)this.hass=this._hass;
+    this.render();
+  }
   getCardSize(){return 8;}
   static getStubConfig(hass){return {entity:Object.keys(hass.states).find(id=>id.startsWith("sensor.") && Array.isArray(hass.states[id].attributes.monitors) && "layout_editor" in hass.states[id].attributes) || "sensor.your_pc_display_arrangement"};}
   static getConfigElement(){return document.createElement("what-display-layout-editor");}
@@ -68,15 +86,15 @@ class WhatDisplayLayoutCard extends HTMLElement {
     this._incoming=next;
     if(!this._base || (!this._dirty && !this._drag && !this._pending && changed))this.reload(false);
     else if(changed && this._dirty && !this._pending)this._conflict=!sameArrangement(monitors,this._baseMonitors);
-    if(this._pending && this._requestFinished && !state?.attributes.busy && !state?.attributes.pending && (this.requestedVisible() || !sameArrangement(monitors,this._baseMonitors)))this.finishReadback();
+    const settled=this.reconcileReadback();
     const status=JSON.stringify([state?.state,state?.attributes.control_enabled,state?.attributes.busy,state?.attributes.pending,state?.attributes.layout_editor]);
     if(!this._drag){
-      if(changed)this.render();
+      if(changed || settled)this.render();
       else if(status!==this._status)this.updateStatus();
       this._status=status;
     }
   }
-  connectedCallback(){this._observer=new ResizeObserver(entries=>{const width=entries[0].contentRect.width;if(Math.abs(width-(this._observedWidth||0))<1)return;this._observedWidth=width;if(!this._drag)this.render();});this._observer.observe(this);this.render();}
+  connectedCallback(){this._observer=new ResizeObserver(entries=>{const width=entries[0].contentRect.width;if(Math.abs(width-(this._observedWidth||0))<1)return;this._observedWidth=width;if(!this._drag)this.render();});this._observer.observe(this);this.armReadbackTimeout();this.render();}
   disconnectedCallback(){this._observer?.disconnect();clearTimeout(this._readbackTimer);this._drag=null;}
   get editable(){const a=this._state?.attributes;return !!a && !["unavailable","unknown"].includes(this._state.state) && a.control_enabled===true && a.layout_editor===true && !a.pending && !this._pending;}
   get writable(){const a=this._state?.attributes;return !!a && !["unavailable","unknown"].includes(this._state.state) && a.control_enabled===true && a.layout_editor===true && !a.busy && !a.pending && !this._pending;}
@@ -89,16 +107,20 @@ class WhatDisplayLayoutCard extends HTMLElement {
   async apply(){
     if(!this.writable || this._conflict || !this._dirty)return;
     let rows;try{rows=validate(normalise(this._draft,this._primary));}catch(error){this._message=error.message;this.render();return;}
-    this._requestedRows=rows;this._pending=true;this._requestFinished=false;this._message="Applying layout…";this.render();
+    this._requestedRows=rows;this._pending=true;this._message="Applying layout…";this.render();
     try{
       await this._hass.callService("what","apply_display_layout",{entity_id:this._config.entity,layout:rows,expected:this._expected});
-      this._requestFinished=true;
-      if(this.requestedVisible() || !sameArrangement(this._state?.attributes.monitors||[],this._baseMonitors))this.finishReadback();
-      else {
+      if(this._requestedRows!==rows)return;
+      this._readbackDeadline=performance.now()+10000;
+      if(!this.reconcileReadback()){
         this._message="Waiting for Windows to report the applied layout…";
-        this._readbackTimer=setTimeout(()=>{this._pending=false;this._conflict=true;this._message="Windows has not reported a new arrangement yet. Your draft is kept. Reload to check before applying again.";this.render();},10000);
+        this.armReadbackTimeout();
       }
-    }catch(error){this._pending=false;this._message=error.message || "Outcome unknown. Reload the preview before retrying.";this._conflict=true;}
+    }catch(error){
+      if(this._requestedRows!==rows)return;
+      this.clearRequest();
+      this._message=error.message || "Outcome unknown. Reload the preview before retrying.";this._conflict=true;
+    }
     this.render();
   }
   updateStatus(){
@@ -111,7 +133,43 @@ class WhatDisplayLayoutCard extends HTMLElement {
     const actual=layoutOf(this._state?.attributes.monitors||[]),wanted=this._requestedRows||[];
     return actual.length===wanted.length && wanted.every(row=>{const current=actual.find(m=>m.id===row.id);return current && fields.filter(k=>k!=="refresh").every(k=>current[k]===row[k]) && (!row.refresh || Math.abs(row.refresh-(current.refresh||0))<=0.05);});
   }
-  finishReadback(){clearTimeout(this._readbackTimer);this._pending=false;this.reload(false);this._message="Layout applied. Showing the arrangement reported by Windows.";}
+  clearRequest(){
+    clearTimeout(this._readbackTimer);
+    this._readbackDeadline=null;
+    this._requestedRows=null;
+    this._pending=false;
+  }
+  reconcileReadback(){
+    const state=this._state;
+    if(this._readbackDeadline==null || !state || ["unavailable","unknown"].includes(state.state)
+        || !Array.isArray(state.attributes.monitors) || state.attributes.busy || state.attributes.pending)return false;
+    if(this.requestedVisible()){
+      this.clearRequest();
+      this.reload(false);
+      this._message="Layout applied. Showing the arrangement reported by Windows.";
+      return true;
+    }
+    if(sameArrangement(state.attributes.monitors,this._baseMonitors))return false;
+    this.clearRequest();
+    this._conflict=true;
+    this._message="Windows reported a different arrangement. Your draft is kept. Choose Discard changes to load the current layout.";
+    return true;
+  }
+  armReadbackTimeout(){
+    clearTimeout(this._readbackTimer);
+    if(this._readbackDeadline==null || !this.isConnected)return;
+    // A dashboard can detach and reuse this element. Keep the original deadline
+    // so returning to the view never extends or loses the readback timeout.
+    const remaining=this._readbackDeadline-performance.now();
+    const expire=()=>{
+      this.clearRequest();
+      this._conflict=true;
+      this._message="Windows has not confirmed the requested arrangement. Your draft is kept. Choose Discard changes to reload the current layout.";
+      this.render();
+    };
+    if(remaining<=0)expire();
+    else this._readbackTimer=setTimeout(expire,remaining);
+  }
   applyReason(){
     if(this._pending)return this._message||"Applying layout…";
     if(this._conflict)return "Windows changed while you were editing. Reload before applying.";

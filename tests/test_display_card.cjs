@@ -61,6 +61,40 @@ assert.match(await page.locator('.footer .message').innerText(),/Waiting for Win
 await page.evaluate(()=>{Object.assign(fixtureMonitors[1],{x:-1080,y:0});card.hass=fixtureHass;fixtureHass.callService=savedService;});
 assert.equal(await page.evaluate(()=>card._pending),false);
 assert.equal(await page.evaluate(()=>card._dirty),false);
+// A different layout is a conflict, whether it arrives before the service
+// resolves or in the next Home Assistant state update.
+for(const duringService of [true,false]){
+ await page.locator('[data-place="right"]').click();
+ await page.evaluate(during=>{
+  window.reportDifferentLayout=()=>{
+   fixtureMonitors[1].y+=50;
+   card.hass=fixtureHass;
+  };
+  fixtureHass.callService=async()=>{if(during)reportDifferentLayout();};
+ },duringService);
+ await page.locator('[data-action="apply"]').click();
+ if(!duringService)await page.evaluate(()=>reportDifferentLayout());
+ assert.match(await page.locator('.footer .message').innerText(),/different arrangement/);
+ assert.ok(await page.locator('[data-action="apply"]').isDisabled());
+ assert.equal(await page.evaluate(()=>card._draft[1].x),1920);
+ assert.equal(await page.evaluate(()=>card._dirty),true);
+ await page.locator('[data-action="reload"]').click();
+ assert.equal(await page.evaluate(()=>card._draft[1].x),-1080);
+}
+await page.clock.install();
+await page.evaluate(()=>{fixtureHass.callService=async()=>{};});
+await page.locator('[data-place="right"]').click();
+await page.locator('[data-action="apply"]').click();
+assert.ok(await page.locator('[data-action="reload"]').isDisabled());
+await page.evaluate(()=>card.remove());
+await page.clock.fastForward(7000);
+await page.evaluate(()=>document.body.append(card));
+assert.ok(await page.locator('[data-action="reload"]').isDisabled());
+await page.clock.fastForward(3500);
+assert.match(await page.locator('.footer .message').innerText(),/not confirmed/);
+assert.equal(await page.evaluate(()=>card._dirty),true);
+await page.locator('[data-action="reload"]').click();
+await page.evaluate(()=>{fixtureHass.callService=savedService;});
 await page.screenshot({path:path.join(process.env.WHAT_CARD_ARTIFACTS||require('os').tmpdir(),'display-card-desktop.png'),fullPage:true});
 await page.setViewportSize({width:390,height:1100});await page.screenshot({path:path.join(process.env.WHAT_CARD_ARTIFACTS||require('os').tmpdir(),'display-card-mobile.png'),fullPage:true});
 assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);

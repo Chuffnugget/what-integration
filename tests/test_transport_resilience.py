@@ -20,6 +20,45 @@ def test_reject_ambiguous_or_malformed_json(payload):
         decode_json(payload)
 
 
+@pytest.mark.parametrize("outcome", ["direct_retry", "remote_fallback", "cancel"])
+def test_initial_activation_failure_closes_authenticated_socket(modules, outcome):
+    _, module = modules
+
+    async def run():
+        c, _ = make_coordinator(module)
+        c.entry.options["remote_enabled"] = outcome == "remote_fallback"
+        activating = asyncio.Event()
+
+        class Candidate(IdleClient):
+            async def connect(self):
+                return {"name": "PC"}, copy.deepcopy(test_protocol.SNAPSHOT)
+
+            async def activate_transport(self, data):
+                activating.set()
+                if outcome == "cancel":
+                    await asyncio.Event().wait()
+                raise TimeoutError("activation timed out")
+
+        c.client = Candidate()
+        attempt = asyncio.create_task(c.async_connect())
+        await asyncio.wait_for(activating.wait(), 1)
+        if outcome == "cancel":
+            attempt.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await attempt
+        elif outcome == "direct_retry":
+            with pytest.raises(module.ConfigEntryNotReady):
+                await attempt
+        else:
+            await attempt
+            assert not c.last_update_success
+            assert c.data["sensors"] == []
+        assert c.client.closed
+        assert c.client.ws is None
+
+    asyncio.run(run())
+
+
 def test_alternate_route_interrupts_stalled_direct_connect(modules):
     _, module = modules
 

@@ -13,7 +13,8 @@ def cleanup_candidates(coordinator, entries):
     if not selection_is_fresh(coordinator):
         raise ValueError("fresh_selection_required")
     data = coordinator.data or {}
-    selected = set(data["selected_sensor_ids"]) | set(getattr(coordinator, "readings", {}))
+    protected = set(data["selected_sensor_ids"])
+    protected.update(getattr(coordinator, "readings", {}), DIAGNOSTICS)
     # Only explicitly retired Aux controls are eligible, never an arbitrary
     # missing/disconnected control. Require the updated producer's declaration.
     retired = {"beacn_" + identifier for identifier in data.get("beacn", {}).get("unsupported_controls", [])
@@ -25,7 +26,7 @@ def cleanup_candidates(coordinator, entries):
             if entity.config_entry_id == coordinator.entry.entry_id and entity.platform == "what"
             and entity.unique_id.startswith(prefix)
             and ((entity.domain in {"sensor", "binary_sensor"}
-                  and entity.unique_id[len(prefix):] not in selected | DIAGNOSTICS
+                  and entity.unique_id[len(prefix):] not in protected
                   and not entity.unique_id[len(prefix):].startswith("installation_connection_"))
                  or (entity.domain in {"number", "switch"}
                      and entity.unique_id[len(prefix):] in retired))]

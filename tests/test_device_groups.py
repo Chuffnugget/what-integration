@@ -79,6 +79,26 @@ def test_cleanup_preserves_selected_diagnostics_controls_and_other_pcs():
     rows += [entity("connection", "binary_sensor"), entity("old_binary", "binary_sensor"), entity("other", entry="other"), entity("other", platform="other"), entity("led", "light"), entity("mute", "switch")]
     assert set(cleanup_candidates(c, rows)) == {"sensor.old", "binary_sensor.old_binary"}
 
+def test_cleanup_does_not_copy_the_selected_set_per_entity(monkeypatch):
+    from what_under_test import entity_cleanup
+
+    union_count = 0
+
+    class Diagnostics(set):
+        def __ror__(self, selected):
+            nonlocal union_count
+            union_count += 1
+            return super().__ror__(selected)
+
+    monkeypatch.setattr(entity_cleanup, "DIAGNOSTICS", Diagnostics(["diagnostic"]))
+    c = coordinator()
+    selected = [f"reading_{n}" for n in range(128)]
+    c.data["selected_sensor_ids"] = selected
+    c.readings = {"live": {}}
+    rows = [entity(key) for key in [*selected, "live", "diagnostic", "old"]]
+    assert cleanup_candidates(c, rows) == ["sensor.old"]
+    assert union_count <= 1
+
 @pytest.mark.parametrize("state", ["offline", "stale", "cloud"])
 def test_cleanup_refuses_incomplete_or_stale_selection(state):
     c = coordinator()
