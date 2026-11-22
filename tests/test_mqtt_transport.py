@@ -51,6 +51,20 @@ def test_live_mqtt_handover_scopes_and_commands(modules, monkeypatch, tmp_path, 
     from amqtt.broker import Broker
     import paho.mqtt.client as paho
     _, coord_module = modules
+    class DesktopSession:
+        def __init__(self, stream):
+            self.stream = stream
+
+        async def start(self):
+            await self.stream.send_json({"type": "desktop_ready"})
+
+        async def close(self):
+            pass
+
+    # This fixture supplies a broker and a coordinator, without an HA entity registry.
+    monkeypatch.setattr(coord_module.WhatCoordinator, "_desktop_session",
+                        lambda coordinator, stream: DesktopSession(stream))
+
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")])
     cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key()).serial_number(

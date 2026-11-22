@@ -1,4 +1,4 @@
-"""Install the frontend version needed by the Home Assistant runtime tests."""
+"""Install Home Assistant component requirements used by runtime tests."""
 
 import json
 from pathlib import Path
@@ -8,8 +8,11 @@ import sys
 import homeassistant
 
 
-# Installing Core alone does not install its frontend. Read Core's own manifest
-# so minimum-version and latest-version tests each get their matching frontend.
-manifest = Path(homeassistant.__file__).parent / "components" / "frontend" / "manifest.json"
-requirements = json.loads(manifest.read_text(encoding="utf-8"))["requirements"]
-subprocess.run([sys.executable, "-m", "pip", "install", *requirements], check=True)
+# Importing the camera API for snapshot tests also imports the stream component.
+# Use the pins from the Core version installed in this matrix job.
+components = Path(homeassistant.__file__).parent / "components"
+requirements = set()
+for domain in ("frontend", "camera", "stream"):
+    manifest = components / domain / "manifest.json"
+    requirements.update(json.loads(manifest.read_text(encoding="utf-8"))["requirements"])
+subprocess.run([sys.executable, "-m", "pip", "install", *sorted(requirements)], check=True)
