@@ -193,17 +193,36 @@ test('WHAT Sensor Panel', async t => {
     await page.evaluate(() => offscreen.remove());
   });
 
-  await t.test('a stalled history request times out and resumes on the next refresh', async () => {
-    await page.evaluate(() => {
-      hass.callWS = () => new Promise(() => {});
-      card.hass = hass; card.setConfig({ ...config, title: 'Timeout test', hours_to_show: 2 });
+  await t.test('a stalled history request times out and resumes on the next refresh', async t => {
+    const fixture = await page.evaluateHandle(() => {
+      const panel = document.createElement('what-sensor-graph-card');
+      panel.id = 'timeout-panel';
+      const fixture = { panel, requests: 0 };
+      panel.setConfig({ slots: [{ entity: 'sensor.temp' }] });
+      panel.hass = {
+        states: { 'sensor.temp': { state: '61.14', attributes: { unit_of_measurement: '°C' } } },
+        callWS: () => {
+          if (++fixture.requests === 1) return new Promise(() => {});
+          return Promise.resolve({ 'sensor.temp': [{ s: '55', lu: Date.now() / 1000 - 120 }] });
+        },
+      };
+      document.body.prepend(panel);
+      return fixture;
     });
+    t.after(async () => {
+      await fixture.evaluate(({ panel }) => panel.remove());
+      await fixture.dispose();
+    });
+    const panel = page.locator('#timeout-panel');
+    // Chromium reports visibility on a layout pass, outside the simulated clock.
+    await page.waitForFunction(f => f.requests === 1, fixture, { polling: 20, timeout: 5000 });
     await page.clock.runFor(31000);
-    assert.equal(await page.locator('.history-note').isVisible(), true);
-    assert.equal(await page.locator('.value').first().textContent(), '61.1');
-    await page.evaluate(() => { hass.callWS = originalCall; });
+    assert.equal(await panel.locator('.history-note').isVisible(), true);
+    assert.equal(await panel.locator('.value').textContent(), '61.1');
     await page.clock.runFor(31000);
-    assert.equal(await page.locator('.history-note').isVisible(), false);
+    assert.equal(await fixture.evaluate(f => f.requests), 2);
+    assert.equal(await panel.locator('.history-note').isVisible(), false);
+    assert.match(await panel.locator('.trace').getAttribute('d'), /L/);
   });
 
   await t.test('visual editor selects sensors, colours, order and options without stale resets', async () => {
@@ -306,16 +325,17 @@ test('WHAT Sensor Panel', async t => {
 
   await t.test('appearance edits keep history and do not refetch; tiles-only skips recorder', async () => {
     await page.evaluate(() => { card.setConfig(config); });
-    await page.clock.runFor(1100);
+    await page.waitForFunction(() => card._series.get('sensor.temp')?.length >= 20, undefined, { polling: 20, timeout: 5000 });
     const before = await page.evaluate(() => calls.length);
-    const count = await page.evaluate(() => card._series.get('sensor.temp').length);
+    // The oldest point is clipped as the time window moves. Compare recent samples.
+    const recentHistory = () => page.evaluate(() => card._series.get('sensor.temp').slice(-20));
+    const history = await recentHistory();
     await page.evaluate(() => {
       for (let i = 0; i < 20; i++) card.setConfig({ ...config, title: 'Title ' + i, slots: config.slots.map(s => ({ ...s, colour: '#aabbcc' })) });
     });
     await page.clock.runFor(1100);
     assert.equal(await page.evaluate(() => calls.length), before);
-    assert.ok(await page.evaluate(() => card._series.get('sensor.temp').length >= 20));
-    assert.ok(count >= 20);
+    assert.deepEqual(await recentHistory(), history);
     await page.evaluate(() => { card.setConfig({ slots: [{ entity: 'sensor.temp', graph: false }] }); });
     await page.clock.runFor(61000);
     assert.equal(await page.evaluate(() => calls.length), before);
