@@ -43,6 +43,8 @@ test('WHAT Sensor Panel', async t => {
     window.config = { slots: [{ entity: 'sensor.temp' }, { entity: 'sensor.load' }, { entity: 'sensor.ram' }] };
     card.setConfig(config); card.hass = hass;
   });
+  // Native intersection callbacks run on a real layout pass, outside Playwright's clock.
+  await page.waitForFunction(() => card._inView, undefined, { polling: 20 });
   await page.clock.runFor(1100);
 
   await t.test('picker, numeric values, real compressed history and desktop layout', async () => {

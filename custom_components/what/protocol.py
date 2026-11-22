@@ -177,7 +177,7 @@ def validate_message(data: Any, kind: str, device_id: str | None = None) -> dict
     if kind == "hello":
         _text(data, "name")
         _text(data, "app_version", 64)
-        for capability in ("delta_v1", "commands_v1", "transport_switch_v1", "command_deadline_v1"):
+        for capability in ("delta_v1", "commands_v1", "transport_switch_v1", "command_deadline_v1", "desktop_v1"):
             if capability in data and type(data[capability]) is not bool:
                 raise ProtocolError("Invalid protocol capability")
         return data

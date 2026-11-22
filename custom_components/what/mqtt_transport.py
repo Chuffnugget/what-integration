@@ -71,6 +71,7 @@ class MqttSocket:
         self.base = f"what/{device}"
         self.session = str(uuid.uuid4())
         self.sent = self.received = 0
+        self.send_lock = asyncio.Lock()
         self.closed = False
         self.close_code = None
         self.queue = asyncio.Queue(maxsize=32)
@@ -148,19 +149,20 @@ class MqttSocket:
 
     async def send_json(self, message):
         from homeassistant.components import mqtt
-        if self.closed:
-            raise ConnectionError("MQTT session closed")
         message = dict(message)
         message.pop("token", None)  # Pairing secret never leaves the host via the broker.
-        self.sent += 1
         async with asyncio.timeout(10):
-            await mqtt.async_publish(
-                self.hass,
-                self.base + "/in",
-                encode(self.token, "ha", self.epoch, self.session, self.sent, message),
-                qos=0,
-                retain=False,
-            )
+            # Keep sequence allocation and delivery ordered across keepalives,
+            # Desktop state updates, and commands sharing this session.
+            async with self.send_lock:
+                if self.closed:
+                    raise ConnectionError("MQTT session closed")
+                self.sent += 1
+                await mqtt.async_publish(
+                    self.hass, self.base + "/in",
+                    encode(self.token, "ha", self.epoch, self.session, self.sent, message),
+                    qos=0, retain=False,
+                )
 
     async def receive(self):
         if self.closed:

@@ -1,13 +1,83 @@
 {
   "title": "WHAT",
+  "options": {
+    "step": {
+      "init": {
+        "title": "WHAT Desktop permissions",
+        "description": "Choose what this paired PC can see and control in this Home Assistant installation.",
+        "menu_options": {
+          "entities": "Shared entities",
+          "add_action": "Add a saved action",
+          "edit_action": "Edit a saved action",
+          "remove_action": "Remove a saved action"
+        }
+      },
+      "entities": {
+        "title": "Shared entities",
+        "description": "Choose what this paired PC can see and operate in this home. Shared details can include camera images and calendar events.",
+        "data": {
+          "desktop_access": "WHAT Desktop access",
+          "desktop_view_all": "View all entities",
+          "desktop_view": "Selected entities to view",
+          "desktop_advanced": "Allow saved actions"
+        },
+        "data_description": {
+          "desktop_access": "Control shared entities allows supported actions on everything this PC can see, including unlocking doors and running scripts. View only disables all actions. Choose individual controls lets you select specific devices or helpers on the next screen.",
+          "desktop_view_all": "Includes current entities and entities added later. Turn off to limit this PC to the entities selected below.",
+          "desktop_view": "Used when View all entities is off. Entities explicitly shared for individual control are also visible while that mode is active.",
+          "desktop_advanced": "Allow this PC to run actions saved in WHAT, including administrative actions. View only always disables them."
+        }
+      },
+      "add_action": {
+        "title": "Add a saved action",
+        "description": "Give this PC a single action with fixed targets and data. The PC sees its name and can run it when Allow saved actions is enabled. Services can affect the whole installation if their targets are empty. To use a blueprint, create its script or automation first.",
+        "data": {
+          "name": "Name in WHAT Desktop",
+          "sequence": "Home Assistant action, targets and data"
+        }
+      },
+      "remove_action": {
+        "title": "Remove a saved action",
+        "data": {
+          "preset": "Saved action"
+        }
+      },
+      "edit_action": {
+        "title": "Edit a saved action",
+        "data": {
+          "preset": "Saved action"
+        }
+      },
+      "selected_controls": {
+        "title": "Choose individual controls",
+        "description": "This PC can operate the selected entities. Leave the list empty and Control all lights off to grant no individual controls.",
+        "data": {
+          "desktop_control": "Entities this PC can control",
+          "desktop_control_all_lights": "Control all lights"
+        },
+        "data_description": {
+          "desktop_control": "Allow this PC to operate the entities you select. Each selected entity is also visible to the PC.",
+          "desktop_control_all_lights": "Includes current and future lights in this home."
+        }
+      }
+    },
+    "error": {
+      "invalid_preset": "Enter a name and choose one registered action or device action. Its fixed targets and data must fit within 8 KB.",
+      "preset_limit": "Remove a saved action before adding another. The limit is 128 per PC."
+    }
+  },
   "config": {
     "flow_title": "{name}",
     "step": {
       "user": {
         "title": "Pair a Windows PC",
-        "description": "Choose the connection selected in WHAT > Settings > Home Assistant Installations. WHAT API supports both local and remote connections without a broker. MQTT uses the broker configured in Home Assistant's MQTT integration.",
+        "description": "Choose the connection set in WHAT > Settings > Home Assistant Installations, then choose what this PC can do in this home.",
         "data": {
-          "connection": "Connection method"
+          "connection": "Connection method",
+          "desktop_access": "WHAT Desktop access"
+        },
+        "data_description": {
+          "desktop_access": "By default this PC can view current and future entities and use their supported controls, including unlocking doors and running scripts. Choose View only for readings and previews, or Choose individual controls to pick what it can operate."
         }
       },
       "reconfigure": {
@@ -33,7 +103,11 @@
           "token": "Pairing token",
           "fingerprint": "Certificate SHA-256 fingerprint",
           "host": "PC address (optional, for local access)",
-          "port": "PC port"
+          "port": "PC port",
+          "desktop_control": "Entities this PC can control"
+        },
+        "data_description": {
+          "desktop_control": "Leave empty for viewing only. You can change this selection later under Configure > Shared entities."
         }
       },
       "mqtt": {
@@ -43,7 +117,11 @@
           "device_id": "PC device ID",
           "name": "PC name",
           "token": "Pairing token",
-          "fingerprint": "Certificate SHA-256 fingerprint"
+          "fingerprint": "Certificate SHA-256 fingerprint",
+          "desktop_control": "Entities this PC can control"
+        },
+        "data_description": {
+          "desktop_control": "Leave empty for viewing only. You can change this selection later under Configure > Shared entities."
         }
       }
     },
@@ -595,6 +673,13 @@
       "options": {
         "api": "WHAT API (Recommended)",
         "mqtt": "MQTT"
+      }
+    },
+    "desktop_access": {
+      "options": {
+        "control": "Control shared entities",
+        "view": "View only",
+        "selected": "Choose individual controls"
       }
     }
   }

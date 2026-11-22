@@ -6,9 +6,12 @@ import logging
 import re
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.core import callback
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
     SelectSelector,
     SelectSelectorConfig,
     TextSelector,
@@ -20,11 +23,13 @@ from .api import AuthenticationError, WhatClient
 from .const import CONF_FINGERPRINT, CONF_TOKEN, DEFAULT_PORT, DOMAIN, PROTOCOL_VERSION
 from .protocol import ProtocolError, fingerprint_bytes
 from .connection_health import clear_repairs
+from .desktop_catalog import CONTROL, DESKTOP_ACCESS, VIEW_ALL, stable_keys
+from .desktop_options import DesktopOptionsFlow, access_selector
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def pairing_schema(defaults, *, api):
+def pairing_schema(defaults, *, api, select_controls=False):
     fields = {
         vol.Required("device_id", default=defaults.get("device_id", "")): str,
         vol.Required("name", default=defaults.get("name", "")): str,
@@ -40,16 +45,26 @@ def pairing_schema(defaults, *, api):
                 vol.Coerce(int), vol.Range(min=1, max=65535),
             ),
         })
+    if select_controls:
+        fields[vol.Optional(CONTROL, description={"suggested_value": defaults.get(CONTROL, [])})] = (
+            EntitySelector(EntitySelectorConfig(multiple=True))
+        )
     return vol.Schema(fields)
 
 
 class WhatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return DesktopOptionsFlow()
+
     def __init__(self):
         self._defaults = {}
         self._discovered_id = None
         self._pairing_source = "user"
+        self._desktop_access = "control"
 
     async def async_step_user(self, user_input=None):
         return await self._choose_connection("user", user_input)
@@ -142,14 +157,19 @@ class WhatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _choose_connection(self, step, user_input):
         if user_input is not None:
+            if step == "user":
+                self._desktop_access = user_input.get(DESKTOP_ACCESS, "control")
             if user_input["connection"] == "mqtt":
                 return await self.async_step_mqtt()
             return await self.async_step_api()
-        return self.async_show_form(step_id=step, data_schema=vol.Schema({
+        fields = {
             vol.Required("connection", default=self._defaults.get("connection", "api")): SelectSelector(
                 SelectSelectorConfig(options=["api", "mqtt"], translation_key="connection"),
             ),
-        }))
+        }
+        if step == "user":
+            fields[vol.Required(DESKTOP_ACCESS, default=self._desktop_access)] = access_selector()
+        return self.async_show_form(step_id=step, data_schema=vol.Schema(fields))
 
     async def async_step_api(self, user_input=None):
         return await self._pair("api", user_input)
@@ -226,9 +246,14 @@ class WhatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._abort_if_unique_id_mismatch()
                     return self._update_pairing(self._get_reauth_entry(), data, options, "reauth_successful")
                 self._abort_if_unique_id_configured()
+                options[DESKTOP_ACCESS] = self._desktop_access
+                if self._desktop_access == "selected":
+                    options[VIEW_ALL] = True
+                    options[CONTROL] = stable_keys(self.hass, user_input.get(CONTROL, []))
                 return self.async_create_entry(title=name, data=data, options=options)
             # Keep entered address/fingerprint after a failed attempt; never echo the token.
             self._defaults = {k: v for k, v in user_input.items() if k != CONF_TOKEN}
         return self.async_show_form(
-            step_id=step, data_schema=pairing_schema(self._defaults, api=step == "api"), errors=errors,
+            step_id=step, data_schema=pairing_schema(self._defaults, api=step == "api",
+                select_controls=self._pairing_source == "user" and self._desktop_access == "selected"), errors=errors,
         )

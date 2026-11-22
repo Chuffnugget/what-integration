@@ -1,5 +1,53 @@
 # WHAT Protocol v2
 
+## WHAT Desktop reverse channel
+
+Both peers advertise `desktop_v1` during authentication. The integration sends
+`desktop_ready` after selecting the active route for this PC. WHAT then sends
+`desktop_request` messages for catalogue searches, subscriptions, details and actions.
+Each request has an ID. A `desktop_result` completes that request and subsequent
+`desktop_states` messages carry the active subscription ID. Each installation has
+its own subscriptions, in-flight requests and route lifetime. Route changes discard
+old results and refresh state. An action with a lost acknowledgement is never retried
+automatically.
+
+Desktop catalogue searches match words across the shared entity's name, entity ID,
+device, area and integration. Search replies include a page of `rows`, the number
+of matching entities in `total`, and the number shared with this PC before filtering
+in `shared_total`. The optional request field `area` filters by a Home Assistant
+area registry ID. Each reply lists up to 128 areas containing shared entities in
+`areas`, as `{id, name}` pairs sorted by name. Older integrations omit both
+`shared_total` and `areas`.
+
+Home Assistant checks the grants belonging to the paired PC for every operation.
+Pairings default to viewing and controlling the installation's current and future
+shared entities. Each entity action must be supported by its target and allowed
+by the PC's access mode and visibility settings. A home can give the PC view-only
+access or a selection of control targets. Administrative presets require separate
+configuration.
+
+Subscription and state rows describe controls using the currently available entity
+services, supported features and attributes. When the PC can control an entity,
+`actions` provides its permitted descriptors. A view-only row has an empty
+`actions` array and can include a separate `capabilities` array of display-only
+descriptors. If `capabilities` is absent, clients use `actions` as the advertised
+controls. The bridge validates grants, service, target and fields again at execution.
+Search results omit display-only descriptors. Password helpers hide their state,
+and view-only script descriptors omit the script's parameter schema.
+
+The optional **Control all lights** grant covers enabled light entities in that
+installation, including lights added after pairing. The server builds light controls
+from the light’s state attributes and uses the same entity’s registry capabilities for
+missing declarations. View-only rows include supported colour modes and light attributes
+even with an empty `actions` list. `light.turn_on` accepts the
+advertised optional `brightness_pct`, `rgb_color` or `color_temp_kelvin` fields.
+RGB colour and colour temperature are mutually exclusive. The separate
+`light.set_effect` descriptor lists valid effect names and invokes Home Assistant's
+`light.turn_on` on the bound entity.
+Entity bindings use the Home Assistant registry ID when available. A saved action
+references an administrator-defined preset with fixed targets and arguments. Both
+peers continue ordinary telemetry if either side lacks this optional capability.
+
 Use compatible Windows app and integration builds. Protocol v1 is not supported.
 
 Local WHAT API connections use TLS 1.2+ WebSockets (`wss://PC:48765/`). Home Assistant initiates connections and

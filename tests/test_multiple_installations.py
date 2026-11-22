@@ -5,6 +5,7 @@ import os
 import socket
 import subprocess
 import types
+import uuid
 
 import aiohttp
 import pytest
@@ -100,6 +101,48 @@ def test_multiple_installations_share_and_isolate_brokers(modules, monkeypatch, 
             mqtt.async_on_subscribe_done = subscribed
             mqtt.async_wait_for_mqtt_client = ready
             monkeypatch.setitem(__import__("sys").modules, "homeassistant.components.mqtt", mqtt)
+            seen = []
+
+            class CameraFixture:
+                """A camera provider for the real paired MQTT clients and Windows bridge."""
+
+                def __init__(self, coordinator, stream):
+                    self.coordinator = coordinator
+                    self.stream = stream
+                    self.tasks = []
+
+                async def start(self):
+                    await self.stream.send_json({"type": "desktop_ready"})
+
+                def submit(self, request):
+                    self.tasks.append(asyncio.create_task(self.respond(request)))
+
+                async def close(self):
+                    if self.tasks:
+                        await asyncio.gather(*self.tasks)
+
+                async def respond(self, request):
+                    seen.append((self.coordinator.entry.title, request["op"]))
+                    reply = {"type": "desktop_result", "id": request["id"], "ok": True}
+                    if request["op"] == "subscribe":
+                        reply["rows"] = [
+                            {**ref, "state": "streaming"} for ref in request["bindings"]
+                        ]
+                    elif request["op"] == "detail":
+                        assert request["kind"] == "camera"
+                        assert request["binding"] == {"entity_id": "camera.fixture"}
+                        from what_under_test.mqtt_transport import encode
+
+                        # Identical request, session, pairing secret and sequence.
+                        # An old epoch must lose even when it arrives first.
+                        stale = encode(self.stream.token, "ha", str(uuid.uuid4()), self.stream.session,
+                                       self.stream.sent + 1, {**reply, "data": {"image": "stale"}})
+                        await publish(self.coordinator.hass, self.stream.base + "/in", stale)
+                        reply["data"] = {"image": "data:image/jpeg;base64," + "a" * 131072}
+                    await self.stream.send_json(reply)
+
+            monkeypatch.setattr(coordinator_module.WhatCoordinator, "_desktop_session",
+                                lambda coordinator, stream: CameraFixture(coordinator, stream))
             env = os.environ | {"WHAT_MULTI_MQTT_FIXTURE": str(stem),
                                 "WHAT_MULTI_MQTT_PORT1": str(ports[0]), "WHAT_MULTI_MQTT_PORT2": str(ports[1])}
             with (tmp_path / "process.txt").open("w") as output:
@@ -132,6 +175,11 @@ def test_multiple_installations_share_and_isolate_brokers(modules, monkeypatch, 
                 # Their distinct pairing tokens must keep their sessions separate.
                 sessions = [c.client.ws.session for c in coordinators]
                 assert len(set(sessions)) == 3
+                stem.with_suffix(".command").write_text("desktop-camera")
+                await until(lambda: stem.with_suffix(".desktop-verified").exists() or process.poll() is not None)
+                assert process.poll() is None, (tmp_path / "qt.txt").read_text(errors="replace")
+                assert ("House 1", "detail") in seen
+                assert all(name == "House 1" for name, _ in seen)
                 stem.with_suffix(".command").write_text("disable-first")
                 await until(lambda: all(c.readings["fixture"]["value"] == 2 for c in coordinators[1:]))
                 await until(lambda: all(c.installation_connections["a" * 32]["status"] == "disabled"

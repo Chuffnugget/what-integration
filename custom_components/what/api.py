@@ -49,6 +49,10 @@ class WhatClient:
         self.transport_switch = False
         self.command_clock = None
         self.entity_resolver = None
+        self.desktop_factory = None
+        self.desktop_enabled = False
+        self.desktop_active = False
+        self.desktop_bridge = None
         self.pending: dict[str, asyncio.Future] = {}
 
     async def connect(self) -> tuple[dict, dict]:
@@ -78,6 +82,7 @@ class WhatClient:
                 "command_deadline_v1": True,
                 "ui_feedback_v1": True,
                 "transport_switch_v1": True,
+                **({"desktop_v1": True} if self.desktop_factory else {}),
             },
         )
         hello = validate_message(await self._receive(authenticating=True), "hello", self.device_id)
@@ -88,6 +93,7 @@ class WhatClient:
         self.command_clock = time.monotonic() if hello.get("command_deadline_v1") is True else None
         self.ui_feedback = hello.get("ui_feedback_v1") is True
         self.transport_switch = hello.get("transport_switch_v1") is True
+        self.desktop_enabled = bool(self.desktop_factory and hello.get("desktop_v1") is True)
         self.stream = StreamState()
         data = await self.receive_snapshot()
         return hello, data
@@ -109,6 +115,18 @@ class WhatClient:
 
     async def receive_snapshot(self) -> dict:
         deadline = time.monotonic() + self.timeout
+        if self.desktop_active and self.desktop_enabled and self.desktop_bridge is None:
+            bridge = self.desktop_bridge = self.desktop_factory(self.ws)
+            try:
+                async with asyncio.timeout(self.timeout):
+                    await bridge.start()
+            except BaseException:
+                # A candidate can interrupt the reader, then fail activation. Its
+                # predecessor must announce Desktop again if the route is kept.
+                if self.desktop_bridge is bridge:
+                    self.desktop_bridge = None
+                    await bridge.close()
+                raise
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
@@ -116,6 +134,11 @@ class WhatClient:
             # Command replies must not keep stale telemetry available forever.
             async with asyncio.timeout(remaining):
                 message = await self._receive()
+            if isinstance(message, dict) and message.get("type") == "desktop_request":
+                if self.desktop_bridge is None:
+                    raise ProtocolError("Desktop session has not been activated")
+                self.desktop_bridge.submit(message)
+                continue
             if isinstance(message, dict) and message.get("type") == "ui_probe":
                 # A reply confirms HA processed the connection, including over
                 # MQTT. Registry lookups are bounded and scoped to this PC.
@@ -249,6 +272,10 @@ class WhatClient:
                 future.exception()
 
     async def close(self) -> None:
+        self.desktop_enabled = self.desktop_active = False
+        if self.desktop_bridge is not None:
+            bridge, self.desktop_bridge = self.desktop_bridge, None
+            await bridge.close()
         self.commands = False
         self.ui_feedback = False
         self.transport_switch = False

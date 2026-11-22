@@ -110,6 +110,43 @@ def live_app():
             source.close()
 
 
+def test_desktop_negotiation_with_compiled_app(live_app):
+    token, pin, identity, _ = live_app
+
+    class DesktopSession:
+        def __init__(self, ws):
+            self.ws = ws
+            self.started = self.closed = False
+
+        async def start(self):
+            await self.ws.send_json({"type": "desktop_ready"})
+            self.started = True
+
+        async def close(self):
+            self.closed = True
+
+    async def run():
+        async with aiohttp.ClientSession() as session:
+            client = WhatClient(session, '127.0.0.1', 18765, token, pin, identity)
+            client.desktop_factory = DesktopSession
+            try:
+                async with asyncio.timeout(12):
+                    hello, snapshot = await client.connect()
+                    assert snapshot['device_id'] == identity and hello.get('desktop_v1') is True
+                    assert client.desktop_enabled and client.desktop_bridge is None
+                    client.desktop_active = True
+                    assert (await client.receive_snapshot())['device_id'] == identity
+                    bridge = client.desktop_bridge
+                    assert bridge.started
+                    # The running PC accepts the reverse channel and continues normal telemetry.
+                    assert (await client.receive_snapshot())['device_id'] == identity
+            finally:
+                await client.close()
+            assert bridge.closed
+
+    asyncio.run(run())
+
+
 def test_live_ui_feedback(live_app):
     token, pin, identity, _ = live_app
     async def run():

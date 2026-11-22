@@ -340,7 +340,13 @@ class WhatCoordinator(DataUpdateCoordinator[dict]):
             device_id=self.entry.unique_id,
         )
         client.entity_resolver = self._entity_ids
+        client.desktop_factory = self._desktop_session
         return client
+
+    def _desktop_session(self, socket):
+        from .desktop_bridge import DesktopBridge
+
+        return DesktopBridge(self.hass, self.entry, socket, remote=self.transport != "local")
 
     def _entity_ids(self, keys):
         """Return current registry IDs, including names changed by the user."""
@@ -472,6 +478,9 @@ class WhatCoordinator(DataUpdateCoordinator[dict]):
         delay = 1
         try:
             while True:
+                # Only the route adopted by this coordinator may control HA.
+                if getattr(self.client, "desktop_enabled", False) is True:
+                    self.client.desktop_active = True
                 offered = asyncio.create_task(self._remote_queue.get())
                 reading = asyncio.create_task(self.client.receive_snapshot()) if self.client.ws is not None else None
                 offer_transferred = False

@@ -82,12 +82,11 @@ private certificate key on the PC.
 
 ## Planned features
 
-- Desktop widgets for Home Assistant entities.
-- Native controls for Home Assistant entities.
 - Linux desktop app support, with **LHAT** as a tentative name.
 
-These features are not available yet and have no release date. The Home Assistant
-Web module already provides access to your dashboard through an embedded browser.
+## Share Home Assistant entities with WHAT Desktop
+
+Pair your PC, then pick an entity in WHAT Desktop. Lights get their brightness and colour controls, air conditioners get their temperature and mode controls, and sensors show readings. By default the pairing can operate supported entities you add later, too. You can choose view-only access or restrict controls to selected entities. Each Home Assistant installation manages its own PCs. [Set up Desktop access and saved actions](documentation/DESKTOP.md)
 
 ## Dashboard cards
 
